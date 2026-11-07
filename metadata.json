@@ -1,0 +1,6 @@
+{
+  "name": "Pulchra Domina",
+  "description": "Visual novel e narrativa interativa psicológica e sombria sobre luto, escolhas e mistério.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

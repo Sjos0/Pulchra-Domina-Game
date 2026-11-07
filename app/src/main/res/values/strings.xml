@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">Pulchra Domina</string>
+    <string name="chapter_1_title">Capítulo 1: O Encontro na Balada</string>
+    <string name="btn_new_game">Novo Jogo</string>
+    <string name="btn_continue">Continuar</string>
+    <string name="btn_restart">Reiniciar Capítulo</string>
+    <string name="btn_save">Salvar Progresso</string>
+    <string name="btn_title">Voltar ao Menu</string>
+    <string name="btn_check_updates">Verificar Atualizações</string>
+    <string name="btn_routes_gallery">Rotas Desbloqueadas</string>
+</resources>
