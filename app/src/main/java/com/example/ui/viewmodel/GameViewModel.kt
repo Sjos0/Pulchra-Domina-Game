@@ -18,6 +18,8 @@ import kotlinx.coroutines.launch
 
 enum class AppScreen {
     TITLE,
+    MANGA_CUTSCENE,
+    EXPLORATION,
     GAME,
     RESULT,
     GALLERY
@@ -64,7 +66,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         )
         val initialNode = ChapterOneStory.getNode("inicio") ?: ChapterOneStory.nodes.values.first()
         _uiState.value = _uiState.value.copy(
-            currentScreen = AppScreen.GAME,
+            currentScreen = AppScreen.MANGA_CUTSCENE, // Novo fluxo: inicia com a cutscene manga colorida
             gameState = initialState,
             currentNode = initialNode,
             calculatedRoute = null,
@@ -72,6 +74,24 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             feedbackMessage = null
         )
         saveCurrentProgress(initialState)
+    }
+
+    fun finishMangaCutscene() {
+        // Transição da cutscene manga para a exploração 2D na rua
+        _uiState.value = _uiState.value.copy(
+            currentScreen = AppScreen.EXPLORATION
+        )
+    }
+
+    fun enterClubFromStreet() {
+        // Transição da rua para o interior do Clube Nocturne (Visual Novel & Escolhas com Maveth)
+        val initialNode = ChapterOneStory.getNode("inicio") ?: ChapterOneStory.nodes.values.first()
+        _uiState.value = _uiState.value.copy(
+            currentScreen = AppScreen.GAME,
+            currentNode = initialNode,
+            feedbackMessage = "Você entrou no Clube Nocturne."
+        )
+        saveCurrentProgress(_uiState.value.gameState)
     }
 
     fun continueGame(savedState: GameState) {

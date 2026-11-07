@@ -13,7 +13,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.components.UpdatesDialog
+import com.example.ui.screens.ExplorationScreen
 import com.example.ui.screens.GameScreen
+import com.example.ui.screens.MangaCutsceneScreen
 import com.example.ui.screens.ResultScreen
 import com.example.ui.screens.RoutesGalleryScreen
 import com.example.ui.screens.TitleScreen
@@ -53,6 +55,23 @@ fun PulchraDominaApp(viewModel: GameViewModel) {
                     onContinueGame = { state -> viewModel.continueGame(state) },
                     onOpenGallery = { viewModel.navigateTo(AppScreen.GALLERY) },
                     onOpenUpdates = { viewModel.setUpdateDialog(true) },
+                    modifier = contentModifier
+                )
+            }
+
+            AppScreen.MANGA_CUTSCENE -> {
+                MangaCutsceneScreen(
+                    onFinishCutscene = { viewModel.finishMangaCutscene() },
+                    modifier = contentModifier
+                )
+            }
+
+            AppScreen.EXPLORATION -> {
+                ExplorationScreen(
+                    onEnterClub = { viewModel.enterClubFromStreet() },
+                    onSaveGame = { viewModel.manualSave() },
+                    onRestartChapter = { viewModel.restartChapter() },
+                    onGoToTitle = { viewModel.navigateTo(AppScreen.TITLE) },
                     modifier = contentModifier
                 )
             }

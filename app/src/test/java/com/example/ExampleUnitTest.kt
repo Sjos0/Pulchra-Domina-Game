@@ -2,6 +2,8 @@ package com.example
 
 import com.example.data.model.GameState
 import com.example.domain.ChapterOneStory
+import com.example.domain.MangaContent
+import com.example.domain.StreetContent
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -27,6 +29,28 @@ class ExampleUnitTest {
                 )
             }
         }
+    }
+
+    @Test
+    fun testMangaCutsceneSequence() {
+        val panels = MangaContent.prologueSequence
+        assertEquals(4, panels.size)
+        assertTrue(panels.any { it.id == "panel_1" })
+        assertTrue(panels.any { it.id == "panel_4" })
+        panels.forEach { panel ->
+            assertTrue(panel.title.isNotBlank())
+            assertTrue(panel.narrativeText.isNotBlank())
+        }
+    }
+
+    @Test
+    fun testStreetExplorationHotspots() {
+        val hotspots = StreetContent.streetHotspots
+        assertTrue("Deve conter hotspots na rua", hotspots.isNotEmpty())
+        val clubDoor = hotspots.firstOrNull { it.isClubDoor }
+        assertNotNull("Deve existir hotspot para a porta da balada", clubDoor)
+        assertEquals("club_entrance", clubDoor?.id)
+        assertTrue("A porta do clube deve estar à direita no cenário", (clubDoor?.positionPercent ?: 0f) > 70f)
     }
 
     @Test
