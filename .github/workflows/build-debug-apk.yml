@@ -24,8 +24,12 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Setup Android SDK
+      - name: Setup Android SDK (preinstalled + packages)
         uses: android-actions/setup-android@v3
+        with:
+          packages: 'tools platform-tools platforms;android-36 build-tools;35.0.0'
+          accept-android-sdk-licenses: true
+          log-accepted-android-sdk-licenses: false
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -43,13 +47,17 @@ jobs:
           fi
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace --no-daemon
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          ./gradlew assembleDebug --stacktrace --no-daemon
 
-      - name: Locate APK
-        id: apk
+      - name: Locate and copy APK
         run: |
           APK=$(find app/build/outputs/apk -name "*.apk" | head -1)
-          echo "path=$APK" >> $GITHUB_OUTPUT
+          echo "Found: $APK"
           ls -lh "$APK"
           cp "$APK" PulchraDomina-v1.0.0-debug.apk
 
@@ -60,24 +68,16 @@ jobs:
           path: PulchraDomina-v1.0.0-debug.apk
           retention-days: 14
 
-      - name: Update Release with new APK
-        if: github.ref == 'refs/heads/main'
+      - name: Update GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Delete old asset if release exists, then upload new one
-          RELEASE_ID=$(gh api repos/${{ github.repository }}/releases/tags/v1.0.0-debug --jq .id 2>/dev/null || true)
-          if [ -z "$RELEASE_ID" ]; then
+          if gh release view v1.0.0-debug >/dev/null 2>&1; then
+            gh release upload v1.0.0-debug PulchraDomina-v1.0.0-debug.apk --clobber
+          else
             gh release create v1.0.0-debug \
               --title "Pulchra Domina v1.0.0 (Debug)" \
-              --notes "Debug build com ícone do corvo + sistema de atualização real. minSdk 26 (Android 8+)." \
+              --notes "Debug build com ícone do corvo (bico à direita) + sistema de atualização real via GitHub Releases. Compatível com Android 8.0+ (minSdk 26)." \
               --prerelease \
               PulchraDomina-v1.0.0-debug.apk
-          else
-            # Remove existing apk asset
-            ASSET_ID=$(gh api repos/${{ github.repository }}/releases/$RELEASE_ID/assets --jq '.[] | select(.name=="PulchraDomina-v1.0.0-debug.apk") | .id' 2>/dev/null || true)
-            if [ -n "$ASSET_ID" ]; then
-              gh api -X DELETE repos/${{ github.repository }}/releases/assets/$ASSET_ID || true
-            fi
-            gh release upload v1.0.0-debug PulchraDomina-v1.0.0-debug.apk --clobber
           fi
