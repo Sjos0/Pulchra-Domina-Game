@@ -2,11 +2,8 @@ package com.example.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -18,11 +15,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -45,68 +42,54 @@ fun TitleScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        ObsidianDark,
-                        AbyssalPurple,
-                        ObsidianDark
-                    )
-                )
-            )
-            .padding(24.dp)
             .testTag("title_screen")
     ) {
+        // Fundo oficial (logo + gradiente roxo inferior)
+        Image(
+            painter = painterResource(id = R.drawable.title_background),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // Vinheta suave no rodapé para legibilidade dos botões
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.55f)
+                .align(Alignment.BottomCenter)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.55f),
+                            Color.Black.copy(alpha = 0.82f)
+                        )
+                    )
+                )
+        )
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(scrollState),
+                .verticalScroll(scrollState)
+                .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Spacer(modifier = Modifier.height(24.dp))
+            // Espaço superior livre — o logo já está na imagem de fundo
+            Spacer(modifier = Modifier.height(280.dp))
 
-            // Cabeçalho e Identidade Visual
+            // Área de botões na região inferior (gradiente da arte)
             Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Emblema Central da Hortênsia Negra
-                Box(
-                    modifier = Modifier
-                        .size(110.dp)
-                        .clip(CircleShape)
-                        .background(SurfaceCard)
-                        .border(2.dp, VioletLight.copy(alpha = 0.6f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.pulchra_domina_icon_1794020212151),
-                        contentDescription = "Emblema Pulchra Domina",
-                        modifier = Modifier
-                            .size(92.dp)
-                            .clip(CircleShape)
-                    )
-                }
-
-                Text(
-                    text = "PULCHRA DOMINA",
-                    color = VioletLight,
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 2.sp,
-                    textAlign = TextAlign.Center
-                )
-
-                Text(
-                    text = "Uma Visual Novel de luto, escolhas e mistério",
-                    color = SilverMist.copy(alpha = 0.85f),
-                    fontSize = 13.sp,
-                    textAlign = TextAlign.Center
-                )
-
                 Surface(
-                    color = SurfaceGothic.copy(alpha = 0.8f),
+                    color = SurfaceGothic.copy(alpha = 0.75f),
                     shape = RoundedCornerShape(20.dp),
                     border = BorderStroke(1.dp, BorderGothic)
                 ) {
@@ -118,19 +101,7 @@ fun TitleScreen(
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
                     )
                 }
-            }
 
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Botões de Ação
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 420.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Novo Jogo
                 Button(
                     onClick = onNewGame,
                     modifier = Modifier
@@ -146,52 +117,42 @@ fun TitleScreen(
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Novo Jogo",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text("Novo Jogo", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 }
 
-                // Continuar Jogo (habilitado se houver save)
                 if (savedGame != null) {
                     OutlinedButton(
                         onClick = { onContinueGame(savedGame) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(52.dp)
-                            .testTag("continue_game_button"),
+                            .height(50.dp)
+                            .testTag("continue_button"),
                         colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = SurfaceCard,
+                            containerColor = AbyssalPurple.copy(alpha = 0.85f),
                             contentColor = PaleText
                         ),
-                        border = BorderStroke(1.5.dp, VioletLight),
+                        border = BorderStroke(1.dp, BorderGothic),
                         shape = RoundedCornerShape(14.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Restore,
                             contentDescription = null,
-                            tint = VioletLight,
-                            modifier = Modifier.size(20.dp)
+                            tint = SilverMist,
+                            modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Continuar Capítulo 1",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        Text("Continuar", fontSize = 14.sp)
                     }
                 }
 
-                // Galeria de Rotas
                 OutlinedButton(
                     onClick = onOpenGallery,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp)
-                        .testTag("routes_gallery_button"),
+                        .height(48.dp)
+                        .testTag("gallery_button"),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = SurfaceGothic,
+                        containerColor = AbyssalPurple.copy(alpha = 0.7f),
                         contentColor = PaleText
                     ),
                     border = BorderStroke(1.dp, BorderGothic),
@@ -204,13 +165,9 @@ fun TitleScreen(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Galeria de Rotas (3a – 3f)",
-                        fontSize = 14.sp
-                    )
+                    Text("Galeria de Rotas (3a – 3f)", fontSize = 14.sp)
                 }
 
-                // Verificar Atualizações
                 OutlinedButton(
                     onClick = onOpenUpdates,
                     modifier = Modifier
@@ -218,7 +175,7 @@ fun TitleScreen(
                         .height(48.dp)
                         .testTag("check_updates_button"),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = AbyssalPurple,
+                        containerColor = AbyssalPurple.copy(alpha = 0.6f),
                         contentColor = MutedText
                     ),
                     border = BorderStroke(1.dp, BorderGothic),
@@ -231,30 +188,15 @@ fun TitleScreen(
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Verificar Atualizações",
-                        fontSize = 13.sp,
-                        color = SilverMist
-                    )
+                    Text("Verificar Atualizações", fontSize = 13.sp, color = SilverMist)
                 }
-            }
 
-            Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-            // Rodapé
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
                 Text(
-                    text = "v1.0.0 • Compatível com Android 8.0+ (API 26)",
+                    text = "v1.0.0 • Android 8.0+",
                     color = MutedText,
-                    fontSize = 11.sp
-                )
-                Text(
-                    text = "Baseado na estética de Edgar Allan Poe e La Belle Dame sans Merci",
-                    color = MutedText.copy(alpha = 0.7f),
-                    fontSize = 10.sp,
+                    fontSize = 11.sp,
                     textAlign = TextAlign.Center
                 )
             }

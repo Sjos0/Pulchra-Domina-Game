@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 enum class AppScreen {
+    BOOT_SEQUENCE,
     TITLE,
     MANGA_CUTSCENE,
     EXPLORATION,
@@ -26,7 +27,7 @@ enum class AppScreen {
 }
 
 data class GameUiState(
-    val currentScreen: AppScreen = AppScreen.TITLE,
+    val currentScreen: AppScreen = AppScreen.BOOT_SEQUENCE,
     val gameState: GameState = GameState(),
     val currentNode: StoryNode = ChapterOneStory.nodes["inicio"]!!,
     val calculatedRoute: MacroRouteInfo? = null,
@@ -194,6 +195,10 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setMenuOpen(open: Boolean) {
         _uiState.value = _uiState.value.copy(isMenuOpen = open)
+    }
+
+    fun finishBootSequence() {
+        _uiState.value = _uiState.value.copy(currentScreen = AppScreen.TITLE)
     }
 
     fun navigateTo(screen: AppScreen) {

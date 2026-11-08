@@ -18,6 +18,7 @@ import com.example.ui.screens.GameScreen
 import com.example.ui.screens.MangaCutsceneScreen
 import com.example.ui.screens.ResultScreen
 import com.example.ui.screens.RoutesGalleryScreen
+import com.example.ui.screens.BootSequenceScreen
 import com.example.ui.screens.TitleScreen
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.viewmodel.AppScreen
@@ -48,6 +49,13 @@ fun PulchraDominaApp(viewModel: GameViewModel) {
         val contentModifier = Modifier.padding(innerPadding)
 
         when (uiState.currentScreen) {
+            AppScreen.BOOT_SEQUENCE -> {
+                BootSequenceScreen(
+                    onFinished = { viewModel.finishBootSequence() },
+                    modifier = contentModifier
+                )
+            }
+
             AppScreen.TITLE -> {
                 TitleScreen(
                     savedGame = savedGame,
