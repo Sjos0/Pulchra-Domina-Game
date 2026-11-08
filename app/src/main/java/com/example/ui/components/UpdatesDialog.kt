@@ -104,7 +104,7 @@ fun UpdatesDialog(
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            text = "Versão Instalada: v${updateManager.getCurrentVersion()} (Build 1)",
+                            text = "Versão Instalada: v${updateManager.getCurrentVersion()} (Build 2)",
                             color = SilverMist,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold
