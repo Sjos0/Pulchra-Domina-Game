@@ -195,7 +195,7 @@ fun TitleScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "v1.0.2 • Android 8.0+",
+                    text = "v1.0.3 • Android 8.0+",
                     color = MutedText,
                     fontSize = 11.sp,
                     textAlign = TextAlign.Center

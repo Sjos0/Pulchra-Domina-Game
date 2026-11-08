@@ -1,10 +1,9 @@
 package com.example.ui.screens
 
+import android.graphics.SurfaceTexture
 import android.media.MediaPlayer
-import android.net.Uri
-import android.view.ViewGroup
-import android.widget.FrameLayout
-import android.widget.VideoView
+import android.view.Surface
+import android.view.TextureView
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -16,13 +15,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.R
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 
 /**
  * Sequência de abertura:
@@ -43,10 +40,8 @@ fun BootSequenceScreen(
     onFinished: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     var phase by remember { mutableStateOf(BootPhase.SPLASH) }
     val fadeAlpha = remember { Animatable(0f) }
-    val scope = rememberCoroutineScope()
 
     // Tempo mínimo de splash antes de ir ao vídeo (sensação de "carregou")
     LaunchedEffect(Unit) {
@@ -71,34 +66,59 @@ fun BootSequenceScreen(
 
             BootPhase.VIDEO -> {
                 var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+                var videoReady by remember { mutableStateOf(false) }
 
                 AndroidView(
                     factory = { ctx ->
-                        VideoView(ctx).apply {
-                            layoutParams = FrameLayout.LayoutParams(
-                                ViewGroup.LayoutParams.MATCH_PARENT,
-                                ViewGroup.LayoutParams.MATCH_PARENT
-                            )
-                            val uri = Uri.parse("android.resource://${ctx.packageName}/${R.raw.crow_intro}")
-                            setVideoURI(uri)
-                            setOnPreparedListener { mp ->
-                                mediaPlayer = mp
-                                mp.isLooping = false
-                                mp.setVolume(1f, 1f)
-                                start()
-                            }
-                            setOnCompletionListener {
-                                phase = BootPhase.HOLD
-                            }
-                            setOnErrorListener { _, _, _ ->
-                                phase = BootPhase.HOLD
-                                true
+                        TextureView(ctx).apply {
+                            surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+                                override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
+                                    val mp = MediaPlayer()
+                                    mediaPlayer = mp
+                                    try {
+                                        val afd = ctx.resources.openRawResourceFd(R.raw.crow_intro)
+                                        mp.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+                                        afd.close()
+                                        mp.setSurface(Surface(st))
+                                        mp.isLooping = false
+                                        mp.setVolume(1f, 1f)
+                                        mp.setOnPreparedListener {
+                                            it.start()
+                                            videoReady = true
+                                        }
+                                        mp.setOnCompletionListener { phase = BootPhase.HOLD }
+                                        mp.setOnErrorListener { _, _, _ ->
+                                            phase = BootPhase.HOLD
+                                            true
+                                        }
+                                        mp.prepareAsync()
+                                    } catch (_: Exception) {
+                                        phase = BootPhase.HOLD
+                                    }
+                                }
+                                override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) {}
+                                override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
+                                    try { mediaPlayer?.release() } catch (_: Exception) {}
+                                    mediaPlayer = null
+                                    return true
+                                }
+                                override fun onSurfaceTextureUpdated(st: SurfaceTexture) {}
                             }
                         }
                     },
                     modifier = Modifier.fillMaxSize(),
                     update = { /* no-op */ }
                 )
+
+                // Por cima do VideoView até o primeiro frame — evita o cinza
+                if (!videoReady) {
+                    Image(
+                        painter = painterResource(id = R.drawable.splash_loading),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
 
                 // Fade de áudio: 3.5s → 4.0s (volume 1 → 0)
                 LaunchedEffect(phase) {

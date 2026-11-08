@@ -5,12 +5,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.components.UpdatesDialog
 import com.example.ui.screens.ExplorationScreen
@@ -45,8 +47,16 @@ fun PulchraDominaApp(viewModel: GameViewModel) {
     val savedGame by viewModel.savedGameFlow.collectAsStateWithLifecycle()
     val unlockedRoutes by viewModel.unlockedRoutesFlow.collectAsStateWithLifecycle()
 
-    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-        val contentModifier = Modifier.padding(innerPadding)
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = Color.Black,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
+    ) { innerPadding ->
+        val contentModifier = if (uiState.currentScreen == AppScreen.BOOT_SEQUENCE) {
+            Modifier.fillMaxSize()
+        } else {
+            Modifier.padding(innerPadding)
+        }
 
         when (uiState.currentScreen) {
             AppScreen.BOOT_SEQUENCE -> {
