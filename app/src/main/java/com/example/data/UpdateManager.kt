@@ -44,7 +44,7 @@ class UpdateManager(private val context: Context) {
         private const val REPO_OWNER = "Sjos0"
         private const val REPO_NAME = "Pulchra-Domina-Game"
         private const val API_URL = "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/latest"
-        private const val CURRENT_VERSION = "1.0.1"
+        private const val CURRENT_VERSION = "1.0.2"
     }
 
     fun getCurrentVersion(): String = CURRENT_VERSION
@@ -160,18 +160,33 @@ class UpdateManager(private val context: Context) {
      * Retorna true se o Intent foi disparado.
      */
     fun installApk(apkFile: File): Boolean {
-        if (!apkFile.exists()) return false
+        if (!apkFile.exists() || apkFile.length() < 1000L) return false
         return try {
             val uri: Uri = FileProvider.getUriForFile(
                 context,
                 "${context.packageName}.fileprovider",
                 apkFile
             )
+            // Prefer PackageInstaller-friendly VIEW intent; keep file until user finishes
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, "application/vnd.android.package-archive")
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
+            // Grant explicit read permission to package installer packages
+            context.grantUriPermission(
+                "com.android.packageinstaller",
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+            try {
+                context.grantUriPermission(
+                    "com.google.android.packageinstaller",
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (_: Exception) { }
             context.startActivity(intent)
             true
         } catch (e: Exception) {

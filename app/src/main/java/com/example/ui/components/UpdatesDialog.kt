@@ -104,7 +104,7 @@ fun UpdatesDialog(
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            text = "Versão Instalada: v${updateManager.getCurrentVersion()} (Build 2)",
+                            text = "Versão Instalada: v${updateManager.getCurrentVersion()} (Build 3)",
                             color = SilverMist,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold
@@ -243,12 +243,9 @@ fun UpdatesDialog(
                                     statusMessage = "Download concluído. Abrindo instalador…"
                                     val ok = updateManager.installApk(file)
                                     if (ok) {
-                                        statusMessage = "Instalador aberto. Após instalar, o APK será removido."
-                                        // Limpeza é feita na próxima abertura ou manualmente
-                                        updateManager.cleanupApk()
+                                        statusMessage = "Instalador aberto. Conclua a instalação na tela do sistema. O APK permanece no cache até a próxima verificação."
                                     } else {
-                                        statusMessage = "Não foi possível abrir o instalador."
-                                        updateManager.cleanupApk()
+                                        statusMessage = "Não foi possível abrir o instalador. Tente baixar de novo."
                                     }
                                 } else {
                                     statusMessage = "Falha no download do APK."
