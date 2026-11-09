@@ -24,22 +24,17 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      # Use the Android SDK preinstalled on GitHub-hosted runners
       - name: Configure Android SDK
         run: |
           echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=/usr/local/lib/android/sdk" >> $GITHUB_ENV
           echo "/usr/local/lib/android/sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
           echo "/usr/local/lib/android/sdk/platform-tools" >> $GITHUB_PATH
-          ls /usr/local/lib/android/sdk/ || true
-          ls /usr/local/lib/android/sdk/platforms/ || true
-          ls /usr/local/lib/android/sdk/build-tools/ || true
 
       - name: Install required Android packages
         run: |
           yes | sdkmanager --sdk_root=$ANDROID_HOME "platforms;android-36" "build-tools;35.0.0" "platform-tools" || \
           yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME "platforms;android-36" "build-tools;35.0.0" "platform-tools" || true
-          # Accept licenses non-interactively
           mkdir -p $ANDROID_HOME/licenses
           echo -e "24333f8a63b6825ea9c5514f83c2829b004d1fee\n" > $ANDROID_HOME/licenses/android-sdk-license
           echo -e "84831b9409646a918e30573bab4c9c91346d8abd\n" > $ANDROID_HOME/licenses/android-sdk-preview-license
@@ -60,6 +55,18 @@ jobs:
               -dname "CN=Android Debug,O=Android,C=US"
           fi
 
+      - name: Read version from Gradle
+        id: ver
+        run: |
+          NAME=$(grep -E 'versionName\s*=' app/build.gradle.kts | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+          CODE=$(grep -E 'versionCode\s*=' app/build.gradle.kts | head -1 | sed -E 's/.*=\s*([0-9]+).*/\1/')
+          echo "name=$NAME" >> $GITHUB_OUTPUT
+          echo "code=$CODE" >> $GITHUB_OUTPUT
+          echo "Resolved versionName=$NAME versionCode=$CODE"
+
+      - name: Unit tests
+        run: ./gradlew testDebugUnitTest --stacktrace --no-daemon
+
       - name: Build Debug APK
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME"
@@ -70,25 +77,34 @@ jobs:
           APK=$(find app/build/outputs/apk -name "*.apk" | head -1)
           echo "Found: $APK"
           ls -lh "$APK"
-          cp "$APK" PulchraDomina-v1.0.9-debug.apk
+          cp "$APK" "PulchraDomina-v${{ steps.ver.outputs.name }}-debug.apk"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PulchraDomina-v1.0.9-debug
-          path: PulchraDomina-v1.0.9-debug.apk
+          name: PulchraDomina-v${{ steps.ver.outputs.name }}-debug
+          path: PulchraDomina-v${{ steps.ver.outputs.name }}-debug.apk
           retention-days: 14
 
       - name: Update GitHub Release
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if gh release view v1.0.9-debug >/dev/null 2>&1; then
-            gh release upload v1.0.9-debug PulchraDomina-v1.0.9-debug.apk --clobber
+          TAG="v${{ steps.ver.outputs.name }}-debug"
+          APK="PulchraDomina-v${{ steps.ver.outputs.name }}-debug.apk"
+          NOTES="Pulchra Domina v${{ steps.ver.outputs.name }} (debug, build ${{ steps.ver.outputs.code }}).
+
+          - Atualização via lista de releases (não só /latest)
+          - CI com testDebugUnitTest
+          - Release estável (não prerelease)
+          - Android 8.0+ (minSdk 26)"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$APK" --clobber
+            gh release edit "$TAG" --title "Pulchra Domina v${{ steps.ver.outputs.name }} (Debug)" --notes "$NOTES" --prerelease=false
           else
-            gh release create v1.0.9-debug \
-              --title "Pulchra Domina v1.0.9 (Debug)" \
-              --notes "Debug build com ícone do corvo (bico à direita) + sistema de atualização real. Android 8.0+ (minSdk 26)." \
-              --prerelease \
-              PulchraDomina-v1.0.9-debug.apk
+            gh release create "$TAG" \
+              --title "Pulchra Domina v${{ steps.ver.outputs.name }} (Debug)" \
+              --notes "$NOTES" \
+              "$APK"
           fi

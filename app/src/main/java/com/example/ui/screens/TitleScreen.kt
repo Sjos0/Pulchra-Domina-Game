@@ -22,6 +22,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.BuildConfig
 import com.example.R
 import com.example.data.model.GameState
 import com.example.ui.components.PixelWoodButton
@@ -151,7 +152,7 @@ fun TitleScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "v1.0.9 • Android 8.0+",
+                    text = "v${BuildConfig.VERSION_NAME} • Android 8.0+",
                     color = MutedText,
                     fontFamily = PixelFontFamily,
                     fontSize = 11.sp,

@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.example.BuildConfig
 import com.example.data.UpdateManager
 import com.example.ui.theme.*
 import kotlinx.coroutines.launch
@@ -104,7 +105,7 @@ fun UpdatesDialog(
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            text = "Versão Instalada: v${updateManager.getCurrentVersion()} (Build 10)",
+                            text = "Versão Instalada: v${updateManager.getCurrentVersion()} (Build ${BuildConfig.VERSION_CODE})",
                             color = SilverMist,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold

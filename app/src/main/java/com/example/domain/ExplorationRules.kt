@@ -27,14 +27,14 @@ object ExplorationRules {
         return next to true
     }
 
-    fun applyDrag(x: Float, deltaPercent: Float): Pair<Float, Boolean> {
+    fun applyDrag(x: Float, facingRight: Boolean, deltaPercent: Float): Pair<Float, Boolean> {
         val next = (x + deltaPercent).coerceIn(MIN_X, MAX_X)
-        val facingRight = when {
+        val facing = when {
             deltaPercent > 0f -> true
             deltaPercent < 0f -> false
-            else -> true // caller should preserve previous if 0; use >0 as default
+            else -> facingRight
         }
-        return next to facingRight
+        return next to facing
     }
 
     fun nearbyHotspot(

@@ -30,6 +30,7 @@ fun DialogueBox(
     text: String,
     innerThoughts: String?,
     hasChoices: Boolean,
+    canAdvance: Boolean,
     onAdvance: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -40,7 +41,7 @@ fun DialogueBox(
             .fillMaxWidth()
             .testTag("dialogue_box")
             .then(
-                if (!hasChoices) Modifier.clickable { onAdvance() } else Modifier
+                if (canAdvance) Modifier.clickable { onAdvance() } else Modifier
             ),
         color = SurfaceCard.copy(alpha = 0.95f),
         shape = RoundedCornerShape(20.dp),
@@ -102,8 +103,8 @@ fun DialogueBox(
                 }
             }
 
-            // Indicador de Toque para Avançar (quando não há escolhas imediatas)
-            if (!hasChoices) {
+            // Indicador de avanço linear (sem escolhas e com próximo nó)
+            if (canAdvance) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(
                     modifier = Modifier

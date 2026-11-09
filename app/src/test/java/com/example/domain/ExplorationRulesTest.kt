@@ -36,3 +36,17 @@ class ExplorationRulesTest {
         assertNull(ExplorationRules.nearbyHotspot(35f))
     }
 }
+
+    @Test
+    fun canvasFraction_clamps() {
+        assertEquals(0.15f, ExplorationRules.canvasFraction(5f), 0.001f)
+        assertEquals(0.85f, ExplorationRules.canvasFraction(99f), 0.001f)
+        assertEquals(0.50f, ExplorationRules.canvasFraction(50f), 0.001f)
+    }
+
+    @Test
+    fun applyDrag_preservesFacingWhenDeltaZero() {
+        val (x, facing) = ExplorationRules.applyDrag(40f, facingRight = false, deltaPercent = 0f)
+        assertEquals(40f, x, 0.001f)
+        assertFalse(facing)
+    }

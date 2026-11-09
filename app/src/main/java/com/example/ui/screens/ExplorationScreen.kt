@@ -150,13 +150,13 @@ fun ExplorationScreen(
                         detectDragGestures { change, dragAmount ->
                             change.consume()
                             val deltaX = dragAmount.x / 10f
-                            if (deltaX < 0) {
-                                isFacingRight = false
-                                playerXPercent = (playerXPercent + deltaX).coerceIn(10f, 90f)
-                            } else if (deltaX > 0) {
-                                isFacingRight = true
-                                playerXPercent = (playerXPercent + deltaX).coerceIn(10f, 90f)
-                            }
+                            val (x, facing) = ExplorationRules.applyDrag(
+                                playerXPercent,
+                                isFacingRight,
+                                deltaX
+                            )
+                            playerXPercent = x
+                            isFacingRight = facing
                         }
                     }
             ) {

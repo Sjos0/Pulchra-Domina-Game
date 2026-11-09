@@ -110,6 +110,7 @@ fun GameScreen(
                     text = currentNode.text,
                     innerThoughts = currentNode.innerThoughts,
                     hasChoices = DialoguePresenter.hasChoices(currentNode),
+                    canAdvance = DialoguePresenter.canAdvanceLinear(currentNode),
                     onAdvance = onAdvance,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )

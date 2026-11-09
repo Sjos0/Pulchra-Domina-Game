@@ -8,7 +8,9 @@ import android.provider.Settings
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
+import com.example.BuildConfig
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -43,11 +45,12 @@ class UpdateManager(private val context: Context) {
     companion object {
         private const val REPO_OWNER = "Sjos0"
         private const val REPO_NAME = "Pulchra-Domina-Game"
-        private const val API_URL = "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/latest"
-        private const val CURRENT_VERSION = "1.0.9"
+        /** Lista releases (inclui prerelease). /releases/latest ignora prereleases. */
+        private const val API_URL =
+            "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases?per_page=20"
     }
 
-    fun getCurrentVersion(): String = CURRENT_VERSION
+    fun getCurrentVersion(): String = BuildConfig.VERSION_NAME
 
     /**
      * Consulta o último release no GitHub.
@@ -66,7 +69,7 @@ class UpdateManager(private val context: Context) {
             if (code == 404) {
                 return@withContext CheckResult(
                     Status.NO_RELEASES,
-                    message = "Nenhum release publicado ainda no GitHub. Você está na versão $CURRENT_VERSION."
+                    message = "Nenhum release publicado ainda no GitHub. Você está na versão ${BuildConfig.VERSION_NAME}."
                 )
             }
             if (code != 200) {
@@ -77,13 +80,18 @@ class UpdateManager(private val context: Context) {
             }
 
             val body = conn.inputStream.bufferedReader().readText()
-            val json = JSONObject(body)
+            val releases = JSONArray(body)
+            val json = pickBestRelease(releases)
+                ?: return@withContext CheckResult(
+                    Status.NO_RELEASES,
+                    message = "Nenhum release publicado ainda no GitHub. Você está na versão ${BuildConfig.VERSION_NAME}."
+                )
+
             val tag = json.optString("tag_name", "")
             val name = json.optString("name", tag)
             val notes = json.optString("body", null)
             val published = json.optString("published_at", null)
 
-            // Procura asset .apk
             var apkUrl: String? = null
             val assets = json.optJSONArray("assets")
             if (assets != null) {
@@ -98,13 +106,14 @@ class UpdateManager(private val context: Context) {
             }
 
             val remoteVersion = tag.removePrefix("v").trim()
-            val isNewer = isVersionNewer(remoteVersion, CURRENT_VERSION)
+            val current = BuildConfig.VERSION_NAME
+            val isNewer = isVersionNewer(remoteVersion, current)
 
             if (!isNewer) {
                 CheckResult(
                     Status.UP_TO_DATE,
                     ReleaseInfo(tag, name, apkUrl, notes, published),
-                    "Você já está na versão mais recente ($CURRENT_VERSION)."
+                    "Você já está na versão mais recente ($current)."
                 )
             } else {
                 CheckResult(
@@ -215,6 +224,21 @@ class UpdateManager(private val context: Context) {
         try {
             File(context.cacheDir, "pulchra_update.apk").delete()
         } catch (_: Exception) { }
+    }
+
+    /**
+     * Prefere o primeiro release não-draft e não-prerelease;
+     * se só houver prerelease não-draft, usa esse.
+     */
+    private fun pickBestRelease(releases: JSONArray): JSONObject? {
+        var fallback: JSONObject? = null
+        for (i in 0 until releases.length()) {
+            val rel = releases.getJSONObject(i)
+            if (rel.optBoolean("draft", false)) continue
+            if (!rel.optBoolean("prerelease", false)) return rel
+            if (fallback == null) fallback = rel
+        }
+        return fallback
     }
 
     private fun isVersionNewer(remote: String, current: String): Boolean {

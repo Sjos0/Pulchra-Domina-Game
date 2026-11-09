@@ -22,3 +22,10 @@
 
 ## API pública
 - `MainActivity` / `GameViewModel` não mudaram nesta fase
+
+## Correções pós-revisão Claude (v1.0.10)
+- UpdateManager: `/releases` + pickBestRelease (não-draft, prefere não-prerelease)
+- Workflow: sem `--prerelease`; testes unitários; release só no `main`; versão lida do Gradle
+- `applyDrag` com facing preservado; drag da ExplorationScreen usa presenter
+- Versão UI via `BuildConfig.VERSION_NAME` / `VERSION_CODE`
+- `DialogueBox.canAdvance` ligado a `DialoguePresenter.canAdvanceLinear`
