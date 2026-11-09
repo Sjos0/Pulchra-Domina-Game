@@ -54,8 +54,7 @@ fun PixelFrameBox(
             contentDescription = null,
             contentScale = ContentScale.Crop,
             alignment = Alignment.Center,
-            modifier = Modifier.fillMaxSize(),
-            filterQuality = FilterQuality.None
+            modifier = Modifier.fillMaxSize()
         )
         Box(
             modifier = Modifier
