@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.example.data.model.GameState
+import com.example.domain.DialoguePresenter
 import com.example.domain.StoryChoice
 import com.example.domain.StoryNode
 import com.example.ui.components.*
@@ -108,7 +109,7 @@ fun GameScreen(
                     character = currentNode.character,
                     text = currentNode.text,
                     innerThoughts = currentNode.innerThoughts,
-                    hasChoices = currentNode.choices.isNotEmpty(),
+                    hasChoices = DialoguePresenter.hasChoices(currentNode),
                     onAdvance = onAdvance,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
@@ -117,7 +118,7 @@ fun GameScreen(
 
                 // Área de Escolhas (se disponíveis)
                 AnimatedVisibility(
-                    visible = currentNode.choices.isNotEmpty(),
+                    visible = DialoguePresenter.hasChoices(currentNode),
                     enter = fadeIn(),
                     exit = fadeOut()
                 ) {
@@ -127,7 +128,7 @@ fun GameScreen(
                             .padding(horizontal = 16.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        currentNode.choices.forEach { choice ->
+                        DialoguePresenter.visibleChoices(currentNode).forEach { choice ->
                             ChoiceButton(
                                 choice = choice,
                                 onSelect = { onChoiceSelected(choice) }

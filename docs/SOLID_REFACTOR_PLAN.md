@@ -89,3 +89,13 @@ Começar **Fase 1** (separar conteúdo da história do calculador de rotas).
 - Testes: `GameSessionTest` + `MacroRouteCalculatorTest`
 
 Próximo: Fase 3 (telas Exploration/Manga/Game mais “burras”).
+
+
+### Fase 3 — concluída (v1.0.9)
+- `ExplorationRules` — movimento, limites, hotspot, fração do canvas
+- `MangaSequencePlayer` — avanço de painéis / fim da sequência
+- `DialoguePresenter` — flags de escolha/avanço linear para VN
+- Telas Exploration/Manga/Game consomem presenters; arte Compose permanece nas screens
+- Testes: `ExplorationRulesTest`, `MangaSequencePlayerTest`, `DialoguePresenterTest`
+
+Próximo: Fase 4 (pacotes `com.pulchradomina` / applicationId — só com release estável).

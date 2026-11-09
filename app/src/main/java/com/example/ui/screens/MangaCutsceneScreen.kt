@@ -31,8 +31,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.domain.MangaContent
 import com.example.domain.MangaPanel
+import com.example.domain.MangaSequencePlayer
 import com.example.domain.MangaVisualType
 import com.example.ui.theme.*
 
@@ -41,15 +41,17 @@ fun MangaCutsceneScreen(
     onFinishCutscene: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val panels = MangaContent.prologueSequence
+    val sequencePlayer = remember { MangaSequencePlayer() }
+    val panels = sequencePlayer.panelList
     var currentIndex by remember { mutableIntStateOf(0) }
-    val currentPanel = panels[currentIndex]
+    val currentPanel = sequencePlayer.panelAt(currentIndex)
 
     fun advance() {
-        if (currentIndex < panels.size - 1) {
-            currentIndex++
-        } else {
+        val (next, finished) = sequencePlayer.advance(currentIndex)
+        if (finished) {
             onFinishCutscene()
+        } else {
+            currentIndex = next
         }
     }
 
@@ -153,7 +155,7 @@ fun MangaCutsceneScreen(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Text(
-                            text = if (currentIndex == panels.size - 1) "Toque para explorar a rua" else "Toque na tela para o próximo quadro",
+                            text = if (sequencePlayer.isLast(currentIndex)) "Toque para explorar a rua" else "Toque na tela para o próximo quadro",
                             color = VioletLight,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium

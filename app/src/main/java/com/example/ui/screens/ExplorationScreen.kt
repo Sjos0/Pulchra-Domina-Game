@@ -31,12 +31,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.domain.ExplorationRules
 import com.example.domain.StreetContent
 import com.example.domain.StreetHotspot
 import com.example.ui.components.GameMenuDialog
 import com.example.ui.theme.*
 import kotlinx.coroutines.delay
-import kotlin.math.abs
 
 @Composable
 fun ExplorationScreen(
@@ -52,36 +52,33 @@ fun ExplorationScreen(
         isMenuOpen = true
     }
 
-    // Posição de Edgar na rua (em porcentagem de 10f a 90f)
-    var playerXPercent by remember { mutableFloatStateOf(20f) }
+    // Posição / direção — regras em ExplorationRules
+    var playerXPercent by remember { mutableFloatStateOf(ExplorationRules.START_X) }
     var isFacingRight by remember { mutableStateOf(true) }
     var activeHotspotDialogue by remember { mutableStateOf<StreetHotspot?>(null) }
 
-    // Interações de toque contínuo para andar
     val leftInteractionSource = remember { MutableInteractionSource() }
     val rightInteractionSource = remember { MutableInteractionSource() }
     val isLeftPressed by leftInteractionSource.collectIsPressedAsState()
     val isRightPressed by rightInteractionSource.collectIsPressedAsState()
 
-    // Loop de movimento suave enquanto segura o botão
     LaunchedEffect(isLeftPressed, isRightPressed) {
         while (isLeftPressed || isRightPressed) {
             if (isLeftPressed) {
-                playerXPercent = (playerXPercent - 1.4f).coerceIn(10f, 90f)
-                isFacingRight = false
+                val (x, facing) = ExplorationRules.stepLeft(playerXPercent)
+                playerXPercent = x
+                isFacingRight = facing
             } else if (isRightPressed) {
-                playerXPercent = (playerXPercent + 1.4f).coerceIn(10f, 90f)
-                isFacingRight = true
+                val (x, facing) = ExplorationRules.stepRight(playerXPercent)
+                playerXPercent = x
+                isFacingRight = facing
             }
-            delay(30)
+            delay(ExplorationRules.MOVE_TICK_MS)
         }
     }
 
-    // Identifica o hotspot mais próximo
     val nearbyHotspot = remember(playerXPercent) {
-        StreetContent.streetHotspots.firstOrNull { spot ->
-            abs(spot.positionPercent - playerXPercent) < 8.5f
-        }
+        ExplorationRules.nearbyHotspot(playerXPercent)
     }
 
     Box(
@@ -177,7 +174,7 @@ fun ExplorationScreen(
                             .padding(bottom = 140.dp),
                         contentAlignment = Alignment.BottomStart
                     ) {
-                        val fraction = (playerXPercent / 100f).coerceIn(0.15f, 0.85f)
+                        val fraction = ExplorationRules.canvasFraction(playerXPercent)
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth(fraction)
