@@ -6,25 +6,32 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.example.R
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.roundToInt
 
 /**
- * Caixa pixel com fundo de madeira e moldura 9-slice (cantos + bordas repetidas).
- * As peças da moldura são desenhadas interligadas — sem gaps entre segmentos.
+ * Caixa pixel: madeira com aspecto preservado (crop central) + moldura 9-slice.
+ * Bordas = azulejos sem pontas; cantos cobrem as emendas.
  */
 @Composable
 fun PixelFrameBox(
     modifier: Modifier = Modifier,
-    contentPadding: Dp = 16.dp,
+    contentPadding: Dp = 18.dp,
     content: @Composable BoxScope.() -> Unit
 ) {
     val tl = ImageBitmap.imageResource(id = R.drawable.frame_tl)
@@ -37,22 +44,18 @@ fun PixelFrameBox(
     val right = ImageBitmap.imageResource(id = R.drawable.frame_right)
 
     Box(
-        modifier = modifier
-            .drawWithContent {
-                // Fundo madeira (ligeiramente inset para a moldura cobrir as bordas)
-                // O Image abaixo desenha o fill; aqui só a moldura por cima do content
-                drawContent()
-                drawPixelFrame(
-                    tl = tl, tr = tr, bl = bl, br = br,
-                    top = top, bottom = bottom, left = left, right = right
-                )
-            }
+        modifier = modifier.drawWithContent {
+            drawContent()
+            drawSeamlessFrame(tl, tr, bl, br, top, bottom, left, right)
+        }
     ) {
         Image(
             painter = painterResource(id = R.drawable.box_wood_bg),
             contentDescription = null,
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
+            alignment = Alignment.Center,
+            modifier = Modifier.fillMaxSize(),
+            filterQuality = FilterQuality.None
         )
         Box(
             modifier = Modifier
@@ -63,7 +66,7 @@ fun PixelFrameBox(
     }
 }
 
-private fun DrawScope.drawPixelFrame(
+private fun DrawScope.drawSeamlessFrame(
     tl: ImageBitmap,
     tr: ImageBitmap,
     bl: ImageBitmap,
@@ -75,100 +78,78 @@ private fun DrawScope.drawPixelFrame(
 ) {
     val w = size.width
     val h = size.height
+    val minSide = min(w, h)
+    val baseCorner = max(tl.width, tl.height).toFloat()
+    val scale = min((minSide * 0.14f) / baseCorner, 1.6f).coerceAtLeast(0.45f)
 
-    // Escala cantos para ~ densidades: usar tamanho nativo em px convertendo
-    // ImageBitmap já está em px; desenhamos em px de canvas
-    val cw = maxOf(tl.width, tr.width, bl.width, br.width).toFloat()
-    val ch = maxOf(tl.height, tr.height, bl.height, br.height).toFloat()
-    val scale = minOf(
-        (w * 0.18f) / cw,
-        (h * 0.22f) / ch,
-        1.2f
-    ).coerceAtLeast(0.5f)
+    val cw = (tl.width * scale).roundToInt().coerceAtLeast(1)
+    val ch = (tl.height * scale).roundToInt().coerceAtLeast(1)
+    val topH = max(1, (top.height * scale).roundToInt())
+    val botH = max(1, (bottom.height * scale).roundToInt())
+    val leftW = max(1, (left.width * scale).roundToInt())
+    val rightW = max(1, (right.width * scale).roundToInt())
+    val overlap = max(1, (2f * scale).roundToInt())
 
-    val cornerW = cw * scale
-    val cornerH = ch * scale
-    val edgeTopH = top.height * scale
-    val edgeBotH = bottom.height * scale
-    val edgeLeftW = left.width * scale
-    val edgeRightW = right.width * scale
+    tileH(top, cw - overlap, 0, w.roundToInt() - cw + overlap, topH)
+    tileH(bottom, cw - overlap, h.roundToInt() - botH, w.roundToInt() - cw + overlap, botH)
+    tileV(left, 0, ch - overlap, h.roundToInt() - ch + overlap, leftW)
+    tileV(right, w.roundToInt() - rightW, ch - overlap, h.roundToInt() - ch + overlap, rightW)
 
-    // Bordas horizontais (entre cantos), com overlap de 1px para evitar frestas
-    tileHorizontal(top, cornerW - 1f, 0f, w - cornerW + 1f, edgeTopH)
-    tileHorizontal(bottom, cornerW - 1f, h - edgeBotH, w - cornerW + 1f, edgeBotH)
-
-    // Bordas verticais
-    tileVertical(left, 0f, cornerH - 1f, edgeLeftW, h - cornerH + 1f)
-    tileVertical(right, w - edgeRightW, cornerH - 1f, edgeRightW, h - cornerH + 1f)
-
-    // Cantos por cima (interligam visualmente)
-    drawImageScaled(tl, 0f, 0f, cornerW, cornerH)
-    drawImageScaled(tr, w - cornerW, 0f, cornerW, cornerH)
-    drawImageScaled(bl, 0f, h - cornerH, cornerW, cornerH)
-    drawImageScaled(br, w - cornerW, h - cornerH, cornerW, cornerH)
+    blit(tl, 0, 0, cw, ch)
+    blit(tr, w.roundToInt() - cw, 0, cw, ch)
+    blit(bl, 0, h.roundToInt() - ch, cw, ch)
+    blit(br, w.roundToInt() - cw, h.roundToInt() - ch, cw, ch)
 }
 
-private fun DrawScope.drawImageScaled(
-    image: ImageBitmap,
-    x: Float,
-    y: Float,
-    dstW: Float,
-    dstH: Float
-) {
+private fun DrawScope.blit(image: ImageBitmap, x: Int, y: Int, dw: Int, dh: Int) {
     drawImage(
         image = image,
-        dstOffset = androidx.compose.ui.unit.IntOffset(x.toInt(), y.toInt()),
-        dstSize = androidx.compose.ui.unit.IntSize(dstW.toInt().coerceAtLeast(1), dstH.toInt().coerceAtLeast(1))
+        srcOffset = IntOffset.Zero,
+        srcSize = IntSize(image.width, image.height),
+        dstOffset = IntOffset(x, y),
+        dstSize = IntSize(dw.coerceAtLeast(1), dh.coerceAtLeast(1)),
+        filterQuality = FilterQuality.None
     )
 }
 
-private fun DrawScope.tileHorizontal(
-    image: ImageBitmap,
-    x0: Float,
-    y: Float,
-    x1: Float,
-    dstH: Float
-) {
+private fun DrawScope.tileH(image: ImageBitmap, x0: Int, y: Int, x1: Int, dstH: Int) {
     if (x1 <= x0) return
-    val tileW = (image.width * (dstH / image.height)).coerceAtLeast(1f)
-    var x = x0
-    while (x < x1) {
-        val remaining = x1 - x
-        val w = minOf(tileW, remaining)
-        // src width proportion
-        val srcW = ((w / tileW) * image.width).toInt().coerceIn(1, image.width)
+    val tileW = max(1f, image.width * (dstH.toFloat() / image.height))
+    var x = x0.toFloat()
+    val end = x1.toFloat()
+    while (x < end) {
+        val remaining = end - x
+        val ww = min(tileW, remaining)
+        val srcW = max(1, ((ww / tileW) * image.width).roundToInt().coerceAtMost(image.width))
         drawImage(
             image = image,
-            srcOffset = androidx.compose.ui.unit.IntOffset(0, 0),
-            srcSize = androidx.compose.ui.unit.IntSize(srcW, image.height),
-            dstOffset = androidx.compose.ui.unit.IntOffset(x.toInt(), y.toInt()),
-            dstSize = androidx.compose.ui.unit.IntSize(w.toInt().coerceAtLeast(1), dstH.toInt().coerceAtLeast(1))
+            srcOffset = IntOffset.Zero,
+            srcSize = IntSize(srcW, image.height),
+            dstOffset = IntOffset(x.roundToInt(), y),
+            dstSize = IntSize(max(1, ww.roundToInt()), max(1, dstH)),
+            filterQuality = FilterQuality.None
         )
-        x += w
+        x += ww
     }
 }
 
-private fun DrawScope.tileVertical(
-    image: ImageBitmap,
-    x: Float,
-    y0: Float,
-    dstW: Float,
-    y1: Float
-) {
+private fun DrawScope.tileV(image: ImageBitmap, x: Int, y0: Int, y1: Int, dstW: Int) {
     if (y1 <= y0) return
-    val tileH = (image.height * (dstW / image.width)).coerceAtLeast(1f)
-    var y = y0
-    while (y < y1) {
-        val remaining = y1 - y
-        val h = minOf(tileH, remaining)
-        val srcH = ((h / tileH) * image.height).toInt().coerceIn(1, image.height)
+    val tileH = max(1f, image.height * (dstW.toFloat() / image.width))
+    var y = y0.toFloat()
+    val end = y1.toFloat()
+    while (y < end) {
+        val remaining = end - y
+        val hh = min(tileH, remaining)
+        val srcH = max(1, ((hh / tileH) * image.height).roundToInt().coerceAtMost(image.height))
         drawImage(
             image = image,
-            srcOffset = androidx.compose.ui.unit.IntOffset(0, 0),
-            srcSize = androidx.compose.ui.unit.IntSize(image.width, srcH),
-            dstOffset = androidx.compose.ui.unit.IntOffset(x.toInt(), y.toInt()),
-            dstSize = androidx.compose.ui.unit.IntSize(dstW.toInt().coerceAtLeast(1), h.toInt().coerceAtLeast(1))
+            srcOffset = IntOffset.Zero,
+            srcSize = IntSize(image.width, srcH),
+            dstOffset = IntOffset(x, y.roundToInt()),
+            dstSize = IntSize(max(1, dstW), max(1, hh.roundToInt())),
+            filterQuality = FilterQuality.None
         )
-        y += h
+        y += hh
     }
 }
