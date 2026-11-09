@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -7,10 +9,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -22,6 +27,11 @@ import com.example.data.model.GameState
 import com.example.ui.components.PixelWoodButton
 import com.example.ui.theme.MutedText
 import com.example.ui.theme.PixelFontFamily
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+
+private const val TITLE_BG_HOLD_MS = 10_000L
+private const val TITLE_BG_FADE_MS = 1_200
 
 @Composable
 fun TitleScreen(
@@ -33,10 +43,22 @@ fun TitleScreen(
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
+    // 0 = arte padrão; 1 = arte secundária (caveira). Loop só enquanto esta tela está composta.
+    val altAlpha = remember { Animatable(0f) }
+
+    LaunchedEffect(Unit) {
+        while (isActive) {
+            delay(TITLE_BG_HOLD_MS)
+            altAlpha.animateTo(1f, animationSpec = tween(TITLE_BG_FADE_MS))
+            delay(TITLE_BG_HOLD_MS)
+            altAlpha.animateTo(0f, animationSpec = tween(TITLE_BG_FADE_MS))
+        }
+    }
 
     Box(
         modifier = modifier
             .fillMaxSize()
+            .background(Color.Black)
             .testTag("title_screen")
     ) {
         Image(
@@ -44,9 +66,17 @@ fun TitleScreen(
             contentDescription = null,
             contentScale = ContentScale.Fit,
             alignment = Alignment.Center,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        Image(
+            painter = painterResource(id = R.drawable.title_background_alt),
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            alignment = Alignment.Center,
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black)
+                .graphicsLayer { alpha = altAlpha.value }
         )
 
         Box(
@@ -75,24 +105,15 @@ fun TitleScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Spacer(modifier = Modifier.height(220.dp))
+            Spacer(modifier = Modifier.height(240.dp))
 
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                PixelWoodButton(
-                    text = "Capítulo 1: O Encontro na Balada",
-                    onClick = {},
-                    enabled = false,
-                    height = 48.dp,
-                    fontSize = 11.sp,
-                    contentColor = Color(0xFFE8D5A3)
-                )
-
                 PixelWoodButton(
                     text = "Novo Jogo",
                     onClick = onNewGame,
@@ -130,7 +151,7 @@ fun TitleScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "v1.0.6 • Android 8.0+",
+                    text = "v1.0.7 • Android 8.0+",
                     color = MutedText,
                     fontFamily = PixelFontFamily,
                     fontSize = 11.sp,
