@@ -165,7 +165,6 @@ fun UpdatesDialog(
                             if (!updateManager.canRequestPackageInstalls()) {
                                 needsPermission = true
                                 statusMessage = "Permissão de instalação necessária."
-                                updateManager.openInstallPermissionSettings()
                                 return@launch
                             }
                             isDownloading = true
@@ -200,6 +199,15 @@ fun UpdatesDialog(
                         color = Color(0xFFFFB0A0),
                         fontFamily = PixelFontFamily,
                         fontSize = 11.sp
+                    )
+                    PixelWoodButton(
+                        text = "Permitir instalação",
+                        onClick = {
+                            updateManager.openInstallPermissionSettings()
+                            needsPermission = false
+                        },
+                        height = 52.dp,
+                        fontSize = 14.sp
                     )
                 }
 
