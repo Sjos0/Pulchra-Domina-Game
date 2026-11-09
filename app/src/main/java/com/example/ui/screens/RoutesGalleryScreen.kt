@@ -20,7 +20,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.domain.ChapterOneStory
+import com.example.domain.ChapterOneStoryRepository
 import com.example.domain.MacroRouteInfo
 import com.example.ui.theme.*
 
@@ -34,7 +34,7 @@ fun RoutesGalleryScreen(
         onBack()
     }
 
-    val routesList = ChapterOneStory.ROUTES.values.toList()
+    val routesList = ChapterOneStoryRepository.routes.values.toList()
 
     Scaffold(
         modifier = modifier

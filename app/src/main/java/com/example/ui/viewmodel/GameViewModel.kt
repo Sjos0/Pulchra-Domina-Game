@@ -5,10 +5,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.local.SaveManager
 import com.example.data.model.GameState
-import com.example.domain.ChapterOneStory
-import com.example.domain.MacroRouteInfo
+import com.example.domain.ChapterOneStoryRepository
 import com.example.domain.StoryChoice
 import com.example.domain.StoryNode
+import com.example.domain.StoryRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -16,29 +16,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-enum class AppScreen {
-    BOOT_SEQUENCE,
-    TITLE,
-    MANGA_CUTSCENE,
-    EXPLORATION,
-    GAME,
-    RESULT,
-    GALLERY
-}
-
-data class GameUiState(
-    val currentScreen: AppScreen = AppScreen.BOOT_SEQUENCE,
-    val gameState: GameState = GameState(),
-    val currentNode: StoryNode = ChapterOneStory.nodes["inicio"]!!,
-    val calculatedRoute: MacroRouteInfo? = null,
-    val isMenuOpen: Boolean = false,
-    val showUpdateDialog: Boolean = false,
-    val feedbackMessage: String? = null
-)
-
+/**
+ * Orquestra sessão de jogo + navegação.
+ * Regras de história ficam em [StoryRepository]; persistência em [SaveManager].
+ */
 class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     private val saveManager = SaveManager(application.applicationContext)
+    private val story: StoryRepository = ChapterOneStoryRepository
 
     private val _uiState = MutableStateFlow(GameUiState())
     val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
@@ -63,11 +48,11 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             pegou_flor = false,
             escolhas_feitas = emptyList(),
             capitulo_atual = "capitulo1",
-            nodeId = "inicio"
+            nodeId = story.startNodeId
         )
-        val initialNode = ChapterOneStory.getNode("inicio") ?: ChapterOneStory.nodes.values.first()
+        val initialNode = story.requireStartNode()
         _uiState.value = _uiState.value.copy(
-            currentScreen = AppScreen.MANGA_CUTSCENE, // Novo fluxo: inicia com a cutscene manga colorida
+            currentScreen = AppScreen.MANGA_CUTSCENE,
             gameState = initialState,
             currentNode = initialNode,
             calculatedRoute = null,
@@ -78,15 +63,11 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun finishMangaCutscene() {
-        // Transição da cutscene manga para a exploração 2D na rua
-        _uiState.value = _uiState.value.copy(
-            currentScreen = AppScreen.EXPLORATION
-        )
+        _uiState.value = _uiState.value.copy(currentScreen = AppScreen.EXPLORATION)
     }
 
     fun enterClubFromStreet() {
-        // Transição da rua para o interior do Clube Nocturne (Visual Novel & Escolhas com Maveth)
-        val initialNode = ChapterOneStory.getNode("inicio") ?: ChapterOneStory.nodes.values.first()
+        val initialNode = story.requireStartNode()
         _uiState.value = _uiState.value.copy(
             currentScreen = AppScreen.GAME,
             currentNode = initialNode,
@@ -96,9 +77,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun continueGame(savedState: GameState) {
-        val node = ChapterOneStory.getNode(savedState.nodeId) ?: ChapterOneStory.getNode("inicio")!!
+        val node = story.getNode(savedState.nodeId) ?: story.requireStartNode()
         val isEnding = node.isChapterEnding
-        val route = if (isEnding) ChapterOneStory.calculateMacroRoute(savedState) else null
+        val route = if (isEnding) story.calculateMacroRoute(savedState) else null
 
         _uiState.value = _uiState.value.copy(
             currentScreen = if (isEnding) AppScreen.RESULT else AppScreen.GAME,
@@ -112,7 +93,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     fun advanceLinearNode() {
         val nextId = _uiState.value.currentNode.nextNodeId ?: return
-        val nextNode = ChapterOneStory.getNode(nextId) ?: return
+        val nextNode = story.getNode(nextId) ?: return
         val updatedState = _uiState.value.gameState.copy(nodeId = nextId)
 
         if (nextNode.isChapterEnding) {
@@ -133,7 +114,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val newConf = current.confianca_maveth + choice.confiancaMavethDelta
         val updatedChoices = current.escolhas_feitas + listOfNotNull(choice.flag ?: choice.id)
 
-        val nextNode = ChapterOneStory.getNode(choice.nextNodeId) ?: return
+        val nextNode = story.getNode(choice.nextNodeId) ?: return
 
         val updatedState = current.copy(
             pont_cap = newPont,
@@ -149,56 +130,50 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             _uiState.value = _uiState.value.copy(
                 gameState = updatedState,
-                currentNode = nextNode
+                currentNode = nextNode,
+                feedbackMessage = choiceFeedback(choice)
             )
             saveCurrentProgress(updatedState)
         }
     }
 
-    private fun finishChapter(state: GameState, endingNode: StoryNode) {
-        val macroRoute = ChapterOneStory.calculateMacroRoute(state)
-        val finalState = state.copy(
-            nodeId = endingNode.id,
-            macroRotaFinal = macroRoute.code
-        )
-
-        _uiState.value = _uiState.value.copy(
-            currentScreen = AppScreen.RESULT,
-            gameState = finalState,
-            currentNode = endingNode,
-            calculatedRoute = macroRoute,
-            feedbackMessage = "Capítulo 1 concluído! Rota ${macroRoute.code} desbloqueada."
-        )
-
-        viewModelScope.launch {
-            saveManager.saveGame(finalState)
-            saveManager.saveUnlockedRoute(macroRoute.code)
+    private fun choiceFeedback(choice: StoryChoice): String? {
+        val parts = mutableListOf<String>()
+        if (choice.pontCapDelta != 0) {
+            val sign = if (choice.pontCapDelta > 0) "+" else ""
+            parts.add("Afinidade $sign${choice.pontCapDelta}")
         }
+        if (choice.confiancaMavethDelta != 0) {
+            val sign = if (choice.confiancaMavethDelta > 0) "+" else ""
+            parts.add("Confiança Maveth $sign${choice.confiancaMavethDelta}")
+        }
+        if (choice.setsPegouFlor == true) parts.add("Você pegou a hortênsia negra")
+        if (choice.setsPegouFlor == false) parts.add("Você recusou a flor")
+        return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
     }
 
-    private fun saveCurrentProgress(state: GameState) {
+    private fun finishChapter(state: GameState, node: StoryNode) {
+        val macroRoute = story.calculateMacroRoute(state)
+        _uiState.value = _uiState.value.copy(
+            gameState = state,
+            currentNode = node,
+            calculatedRoute = macroRoute,
+            currentScreen = AppScreen.RESULT,
+            isMenuOpen = false
+        )
         viewModelScope.launch {
             saveManager.saveGame(state)
+            saveManager.saveUnlockedRoute(macroRoute.code)
         }
     }
 
     fun manualSave() {
         saveCurrentProgress(_uiState.value.gameState)
-        _uiState.value = _uiState.value.copy(
-            feedbackMessage = "Jogo salvo com sucesso!"
-        )
+        _uiState.value = _uiState.value.copy(feedbackMessage = "Jogo salvo")
     }
 
     fun restartChapter() {
         startNewGame()
-    }
-
-    fun setMenuOpen(open: Boolean) {
-        _uiState.value = _uiState.value.copy(isMenuOpen = open)
-    }
-
-    fun finishBootSequence() {
-        _uiState.value = _uiState.value.copy(currentScreen = AppScreen.TITLE)
     }
 
     fun navigateTo(screen: AppScreen) {
@@ -208,11 +183,25 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
+    fun finishBootSequence() {
+        _uiState.value = _uiState.value.copy(currentScreen = AppScreen.TITLE)
+    }
+
+    fun setMenuOpen(open: Boolean) {
+        _uiState.value = _uiState.value.copy(isMenuOpen = open)
+    }
+
     fun setUpdateDialog(show: Boolean) {
         _uiState.value = _uiState.value.copy(showUpdateDialog = show)
     }
 
     fun dismissFeedback() {
         _uiState.value = _uiState.value.copy(feedbackMessage = null)
+    }
+
+    private fun saveCurrentProgress(state: GameState) {
+        viewModelScope.launch {
+            saveManager.saveGame(state)
+        }
     }
 }

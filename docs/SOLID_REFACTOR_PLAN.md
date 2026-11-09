@@ -64,3 +64,18 @@ com.pulchradomina/
 
 ## Próximo passo após v1.0.5
 Começar **Fase 1** (separar conteúdo da história do calculador de rotas).
+
+## Progresso
+
+### Fase 1 — concluída (v1.0.6)
+- `ChapterOneNodes` — só nós/escolhas
+- `MacroRouteCalculator` — só rotas 3a–3f
+- `StoryRepository` + `ChapterOneStoryRepository`
+- `ChapterOneStory` — fachada de compatibilidade
+- `GameViewModel` depende de `StoryRepository`
+- `AppScreen` / `GameUiState` em arquivos próprios
+- Testes unitários de rota em `MacroRouteCalculatorTest`
+
+### Fase 2 — parcial
+- ViewModel mais fino (ainda combina navegação + sessão; save isolado em SaveManager)
+

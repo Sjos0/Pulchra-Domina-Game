@@ -130,7 +130,7 @@ fun TitleScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "v1.0.5 • Android 8.0+",
+                    text = "v1.0.6 • Android 8.0+",
                     color = MutedText,
                     fontFamily = PixelFontFamily,
                     fontSize = 11.sp,
