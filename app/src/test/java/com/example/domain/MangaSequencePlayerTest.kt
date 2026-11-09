@@ -24,7 +24,6 @@ class MangaSequencePlayerTest {
         assertTrue(finished)
         assertTrue(player.isLast(last))
     }
-}
 
     @Test
     fun panelAt_clampsOutOfRange() {
@@ -33,3 +32,4 @@ class MangaSequencePlayerTest {
         assertEquals(player.panelAt(0).id, first.id)
         assertEquals(player.panelAt(player.size - 1).id, last.id)
     }
+}

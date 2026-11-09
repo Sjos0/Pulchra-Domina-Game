@@ -35,7 +35,6 @@ class ExplorationRulesTest {
     fun nearbyHotspot_nullWhenFar() {
         assertNull(ExplorationRules.nearbyHotspot(35f))
     }
-}
 
     @Test
     fun canvasFraction_clamps() {
@@ -50,3 +49,4 @@ class ExplorationRulesTest {
         assertEquals(40f, x, 0.001f)
         assertFalse(facing)
     }
+}
