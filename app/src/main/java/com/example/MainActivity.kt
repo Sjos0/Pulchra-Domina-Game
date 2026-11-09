@@ -5,7 +5,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -47,10 +46,10 @@ fun PulchraDominaApp(viewModel: GameViewModel) {
     val savedGame by viewModel.savedGameFlow.collectAsStateWithLifecycle()
     val unlockedRoutes by viewModel.unlockedRoutesFlow.collectAsStateWithLifecycle()
 
+    // Boot fica fullscreen; demais telas respeitam status/navigation bars
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = Color.Black,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
+        containerColor = Color.Black
     ) { innerPadding ->
         val contentModifier = if (uiState.currentScreen == AppScreen.BOOT_SEQUENCE) {
             Modifier.fillMaxSize()

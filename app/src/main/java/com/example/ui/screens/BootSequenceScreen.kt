@@ -59,7 +59,7 @@ fun BootSequenceScreen(
                 Image(
                     painter = painterResource(id = R.drawable.splash_loading),
                     contentDescription = null,
-                    contentScale = ContentScale.Crop,
+                    contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -115,7 +115,7 @@ fun BootSequenceScreen(
                     Image(
                         painter = painterResource(id = R.drawable.splash_loading),
                         contentDescription = null,
-                        contentScale = ContentScale.Crop,
+                        contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -159,7 +159,7 @@ fun BootSequenceScreen(
                 Image(
                     painter = painterResource(id = R.drawable.logo_hold),
                     contentDescription = null,
-                    contentScale = ContentScale.Crop,
+                    contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize()
                 )
                 LaunchedEffect(Unit) {
@@ -173,7 +173,7 @@ fun BootSequenceScreen(
                 Image(
                     painter = painterResource(id = R.drawable.logo_hold),
                     contentDescription = null,
-                    contentScale = ContentScale.Crop,
+                    contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize()
                 )
                 Box(

@@ -46,11 +46,15 @@ fun TitleScreen(
             .testTag("title_screen")
     ) {
         // Fundo oficial (logo + gradiente roxo inferior)
+        // Fit = imagem inteira (não corta o rabo do corvo). Fundo preto preenche as bordas se houver.
         Image(
             painter = painterResource(id = R.drawable.title_background),
             contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
+            contentScale = ContentScale.Fit,
+            alignment = Alignment.Center,
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
         )
 
         // Vinheta suave no rodapé para legibilidade dos botões
@@ -73,19 +77,21 @@ fun TitleScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
                 .verticalScroll(scrollState)
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             // Espaço superior livre — o logo já está na imagem de fundo
-            Spacer(modifier = Modifier.height(280.dp))
+            Spacer(modifier = Modifier.height(220.dp))
 
-            // Área de botões na região inferior (gradiente da arte)
+            // Área de botões acima da barra de navegação do sistema
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 12.dp),
+                    .padding(bottom = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -195,7 +201,7 @@ fun TitleScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "v1.0.3 • Android 8.0+",
+                    text = "v1.0.4 • Android 8.0+",
                     color = MutedText,
                     fontSize = 11.sp,
                     textAlign = TextAlign.Center
