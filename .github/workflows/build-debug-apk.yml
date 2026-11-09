@@ -60,6 +60,9 @@ jobs:
               -dname "CN=Android Debug,O=Android,C=US"
           fi
 
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest --stacktrace --no-daemon
+
       - name: Build Debug APK
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME"
@@ -80,6 +83,7 @@ jobs:
           retention-days: 14
 
       - name: Update GitHub Release
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
