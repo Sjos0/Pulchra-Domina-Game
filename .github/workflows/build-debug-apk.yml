@@ -70,25 +70,25 @@ jobs:
           APK=$(find app/build/outputs/apk -name "*.apk" | head -1)
           echo "Found: $APK"
           ls -lh "$APK"
-          cp "$APK" PulchraDomina-v1.0.7-debug.apk
+          cp "$APK" PulchraDomina-v1.0.8-debug.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PulchraDomina-v1.0.7-debug
-          path: PulchraDomina-v1.0.7-debug.apk
+          name: PulchraDomina-v1.0.8-debug
+          path: PulchraDomina-v1.0.8-debug.apk
           retention-days: 14
 
       - name: Update GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if gh release view v1.0.7-debug >/dev/null 2>&1; then
-            gh release upload v1.0.7-debug PulchraDomina-v1.0.7-debug.apk --clobber
+          if gh release view v1.0.8-debug >/dev/null 2>&1; then
+            gh release upload v1.0.8-debug PulchraDomina-v1.0.8-debug.apk --clobber
           else
-            gh release create v1.0.7-debug \
-              --title "Pulchra Domina v1.0.7 (Debug)" \
+            gh release create v1.0.8-debug \
+              --title "Pulchra Domina v1.0.8 (Debug)" \
               --notes "Debug build com ícone do corvo (bico à direita) + sistema de atualização real. Android 8.0+ (minSdk 26)." \
               --prerelease \
-              PulchraDomina-v1.0.7-debug.apk
+              PulchraDomina-v1.0.8-debug.apk
           fi

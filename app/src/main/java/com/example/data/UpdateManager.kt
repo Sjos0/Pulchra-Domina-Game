@@ -44,7 +44,7 @@ class UpdateManager(private val context: Context) {
         private const val REPO_OWNER = "Sjos0"
         private const val REPO_NAME = "Pulchra-Domina-Game"
         private const val API_URL = "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/latest"
-        private const val CURRENT_VERSION = "1.0.7"
+        private const val CURRENT_VERSION = "1.0.8"
     }
 
     fun getCurrentVersion(): String = CURRENT_VERSION

@@ -79,3 +79,13 @@ Começar **Fase 1** (separar conteúdo da história do calculador de rotas).
 ### Fase 2 — parcial
 - ViewModel mais fino (ainda combina navegação + sessão; save isolado em SaveManager)
 
+
+
+### Fase 2 — concluída (v1.0.8)
+- `GameSession` + `SessionSnapshot` — regras de partida (escolha, avanço, fim de capítulo)
+- `NavigationState` — chrome de navegação (documentado; UI state ainda em GameUiState)
+- `SavePort` + `SaveManagerPort` — ViewModel não depende de DataStore direto
+- `GameViewModel` — só orquestra sessão + navegação + persistência
+- Testes: `GameSessionTest` + `MacroRouteCalculatorTest`
+
+Próximo: Fase 3 (telas Exploration/Manga/Game mais “burras”).
