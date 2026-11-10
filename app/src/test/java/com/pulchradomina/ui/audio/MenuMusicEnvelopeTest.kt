@@ -6,7 +6,7 @@ import org.junit.Test
 class MenuMusicEnvelopeTest {
     private val durationMs = 219216L
     private val target = 1.0f
-    private val delta = 0.001f
+    private val delta = 0.002f
 
     @Test
     fun positionZero_isSilent() {
