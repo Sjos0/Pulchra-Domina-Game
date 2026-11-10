@@ -27,7 +27,7 @@ import com.example.R
 import com.example.data.model.GameState
 import com.example.ui.components.PixelWoodButton
 import com.example.ui.theme.MutedText
-import com.example.ui.theme.PixelFontFamily
+import com.example.ui.theme.GameFontFamily
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
@@ -154,7 +154,7 @@ fun TitleScreen(
                 Text(
                     text = "v${BuildConfig.VERSION_NAME} • Android 8.0+",
                     color = MutedText,
-                    fontFamily = PixelFontFamily,
+                    fontFamily = GameFontFamily,
                     fontSize = 11.sp,
                     textAlign = TextAlign.Center
                 )

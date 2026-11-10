@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.LocalIndication
+import com.example.ui.theme.PressDarkenIndication
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,8 +36,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MyApplicationTheme {
-                PulchraDominaApp(viewModel = viewModel)
+            CompositionLocalProvider(LocalIndication provides PressDarkenIndication) {
+                MyApplicationTheme {
+                    PulchraDominaApp(viewModel = viewModel)
+                }
             }
         }
     }

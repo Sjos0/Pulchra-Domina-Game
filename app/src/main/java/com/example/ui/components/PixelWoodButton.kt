@@ -1,6 +1,7 @@
 package com.example.ui.components
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -24,7 +25,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
-import com.example.ui.theme.PixelFontFamily
+import com.example.ui.theme.GameFontFamily
 
 /**
  * Botão do menu com arte pixel de madeira (responsabilidade única de UI de botão do título).
@@ -49,7 +50,7 @@ fun PixelWoodButton(
             .clickable(
                 enabled = enabled,
                 interactionSource = interaction,
-                indication = null,
+                indication = LocalIndication.current,
                 role = Role.Button,
                 onClick = onClick
             ),
@@ -64,7 +65,7 @@ fun PixelWoodButton(
         )
         Text(
             text = text,
-            fontFamily = PixelFontFamily,
+            fontFamily = GameFontFamily,
             color = contentColor.copy(alpha = if (enabled) 1f else 0.5f),
             fontSize = fontSize,
             textAlign = TextAlign.Center,

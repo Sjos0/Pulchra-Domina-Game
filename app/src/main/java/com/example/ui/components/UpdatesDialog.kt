@@ -26,7 +26,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.example.BuildConfig
 import com.example.data.UpdateManager
 import com.example.ui.theme.MutedText
-import com.example.ui.theme.PixelFontFamily
+import com.example.ui.theme.GameFontFamily
 import com.example.ui.theme.VioletLight
 import kotlinx.coroutines.launch
 
@@ -81,7 +81,7 @@ fun UpdatesDialog(
                         Text(
                             text = "Atualizações do Jogo",
                             color = Color(0xFFFFF0D0),
-                            fontFamily = PixelFontFamily,
+                            fontFamily = GameFontFamily,
                             fontSize = 15.sp,
                             lineHeight = 18.sp
                         )
@@ -98,21 +98,21 @@ fun UpdatesDialog(
                 Text(
                     text = "Versão Instalada: v${updateManager.getCurrentVersion()} (Build ${BuildConfig.VERSION_CODE})",
                     color = Color(0xFFFFF0D0),
-                    fontFamily = PixelFontFamily,
+                    fontFamily = GameFontFamily,
                     fontSize = 12.sp,
                     lineHeight = 16.sp
                 )
                 Text(
                     text = "Capítulo 1: O Encontro na Balada (MVP)",
                     color = VioletLight,
-                    fontFamily = PixelFontFamily,
+                    fontFamily = GameFontFamily,
                     fontSize = 11.sp,
                     lineHeight = 15.sp
                 )
                 Text(
                     text = "Fonte: GitHub Releases (Sjos0/Pulchra-Domina-Game)",
                     color = Color(0xFFD0B090),
-                    fontFamily = PixelFontFamily,
+                    fontFamily = GameFontFamily,
                     fontSize = 10.sp,
                     lineHeight = 14.sp
                 )
@@ -120,7 +120,7 @@ fun UpdatesDialog(
                 Text(
                     text = statusMessage,
                     color = Color(0xFFFFF0D0),
-                    fontFamily = PixelFontFamily,
+                    fontFamily = GameFontFamily,
                     fontSize = 12.sp,
                     lineHeight = 16.sp
                 )
@@ -197,7 +197,7 @@ fun UpdatesDialog(
                     Text(
                         text = "Ative a permissão de instalar apps desconhecidos para este app.",
                         color = Color(0xFFFFB0A0),
-                        fontFamily = PixelFontFamily,
+                        fontFamily = GameFontFamily,
                         fontSize = 11.sp
                     )
                     PixelWoodButton(
@@ -214,7 +214,7 @@ fun UpdatesDialog(
                 Text(
                     text = "O APK é baixado para o cache do app, instalado pelo sistema e apagado em seguida.",
                     color = Color(0xFFD0B090),
-                    fontFamily = PixelFontFamily,
+                    fontFamily = GameFontFamily,
                     fontSize = 10.sp,
                     lineHeight = 14.sp
                 )
@@ -228,7 +228,7 @@ fun UpdatesDialog(
                     Text(
                         "Fechar",
                         color = MutedText,
-                        fontFamily = PixelFontFamily,
+                        fontFamily = GameFontFamily,
                         fontSize = 13.sp
                     )
                 }
