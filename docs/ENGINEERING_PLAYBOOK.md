@@ -172,5 +172,6 @@ Produto validou: **manter como está**.
 ## 10. Cores de domínio (pós Fase 4)
 
 - Domínio guarda ARGB `Long` em `StoryPalette` / `colorArgb` / `accentColorArgb`.
-- UI usa extensões `uiColor` / `uiAccent` em `Color.kt`.
+- UI: `EdgarColor` etc. **derivam** de `StoryPalette` (`Color(StoryPalette.EDGAR)`), sem hex duplicado.
+- Extensões `uiColor` / `uiAccent` em `Color.kt`.
 - Não importar `androidx.compose.ui.graphics.Color` nem `ui.theme` a partir de `domain/`.
