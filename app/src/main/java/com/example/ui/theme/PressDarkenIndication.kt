@@ -1,33 +1,57 @@
 package com.example.ui.theme
 
-import androidx.compose.foundation.Indication
-import androidx.compose.foundation.IndicationInstance
+import androidx.compose.foundation.IndicationNodeFactory
 import androidx.compose.foundation.interaction.InteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.State
-import androidx.compose.runtime.remember
-import androidx.compose.ui.draw.ContentDrawScope
+import androidx.compose.foundation.interaction.PressInteraction
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.node.DelegatableNode
+import androidx.compose.ui.node.DrawModifierNode
+import androidx.compose.ui.node.invalidateDraw
+import kotlinx.coroutines.launch
 
 /**
  * Feedback de clique para qualquer botão do app: enquanto o dedo estiver
- * pressionado, o elemento fica mais escuro. Substitui o ripple padrão.
- * Fornecido via LocalIndication em MainActivity, então vale para Material
+ * pressionado, o elemento escurece. Substitui o ripple padrão.
+ * Fornecido via LocalIndication em MainActivity: vale para Material
  * (Button, OutlinedButton, TextButton, IconButton) e para os botões custom.
+ *
+ * Usa IndicationNodeFactory: Indication.rememberUpdatedInstance e
+ * IndicationInstance estão deprecated com nível ERROR no Compose 1.7+.
  */
-object PressDarkenIndication : Indication {
-    @Composable
-    override fun rememberUpdatedInstance(interactionSource: InteractionSource): IndicationInstance {
-        val pressed = interactionSource.collectIsPressedAsState()
-        return remember(interactionSource) { DarkenInstance(pressed) }
-    }
+object PressDarkenIndication : IndicationNodeFactory {
+
+    override fun create(interactionSource: InteractionSource): DelegatableNode =
+        PressDarkenNode(interactionSource)
+
+    override fun hashCode(): Int = -1
+
+    override fun equals(other: Any?): Boolean = other === this
 }
 
-private class DarkenInstance(private val pressed: State<Boolean>) : IndicationInstance {
-    override fun ContentDrawScope.drawIndication() {
+private class PressDarkenNode(
+    private val interactionSource: InteractionSource
+) : Modifier.Node(), DrawModifierNode {
+
+    private var isPressed = false
+
+    override fun onAttach() {
+        coroutineScope.launch {
+            interactionSource.interactions.collect { interaction ->
+                when (interaction) {
+                    is PressInteraction.Press -> isPressed = true
+                    is PressInteraction.Release -> isPressed = false
+                    is PressInteraction.Cancel -> isPressed = false
+                }
+                invalidateDraw()
+            }
+        }
+    }
+
+    override fun ContentDrawScope.draw() {
         drawContent()
-        if (pressed.value) {
+        if (isPressed) {
             drawRect(color = Color.Black.copy(alpha = PRESS_DARKEN_ALPHA))
         }
     }
