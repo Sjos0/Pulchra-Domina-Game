@@ -65,13 +65,13 @@ fun CharacterAvatar(
                 .size(54.dp)
                 .clip(CircleShape)
                 .background(bgGradient)
-                .border(1.5.dp, character.color, CircleShape),
+                .border(1.5.dp, character.uiColor, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = iconVector,
                 contentDescription = character.displayName,
-                tint = character.color,
+                tint = character.uiColor,
                 modifier = Modifier.size(28.dp)
             )
         }
@@ -80,7 +80,7 @@ fun CharacterAvatar(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = character.displayName,
-                    color = character.color,
+                    color = character.uiColor,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold
                 )

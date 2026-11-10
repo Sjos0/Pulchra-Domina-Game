@@ -89,7 +89,7 @@ fun ResultScreen(
                     .testTag("macro_route_card"),
                 shape = RoundedCornerShape(22.dp),
                 color = SurfaceCard,
-                border = BorderStroke(1.5.dp, routeInfo.color.copy(alpha = 0.8f)),
+                border = BorderStroke(1.5.dp, routeInfo.uiColor.copy(alpha = 0.8f)),
                 shadowElevation = 10.dp
             ) {
                 Column(
@@ -100,12 +100,12 @@ fun ResultScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Surface(
-                        color = routeInfo.color.copy(alpha = 0.2f),
+                        color = routeInfo.uiColor.copy(alpha = 0.2f),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
                             text = "Macro-Rota Desbloqueada: ${routeInfo.code}",
-                            color = routeInfo.color,
+                            color = routeInfo.uiColor,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
@@ -122,7 +122,7 @@ fun ResultScreen(
 
                     Text(
                         text = routeInfo.subtitle,
-                        color = routeInfo.color,
+                        color = routeInfo.uiColor,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         textAlign = TextAlign.Center

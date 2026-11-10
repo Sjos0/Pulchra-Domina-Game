@@ -163,7 +163,7 @@ private fun RouteCard(
             ) {
                 RouteChip(
                     text = "Rota ${route.code}",
-                    color = if (isUnlocked) route.color else MutedText
+                    color = if (isUnlocked) route.uiColor else MutedText
                 )
                 StatusTag(isUnlocked = isUnlocked)
             }
@@ -181,7 +181,7 @@ private fun RouteCard(
 
             Text(
                 text = route.subtitle,
-                color = if (isUnlocked) route.color else WoodMuted,
+                color = if (isUnlocked) route.uiColor else WoodMuted,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 2,

@@ -1,18 +1,15 @@
 package com.pulchradomina.domain.story
 
-import androidx.compose.ui.graphics.Color
-import com.pulchradomina.ui.theme.*
-
 enum class CharacterType(
     val displayName: String,
     val title: String,
-    val color: Color
+    val colorArgb: Long
 ) {
-    EDGAR("Edgar", "Protagonista", EdgarColor),
-    MAVETH("Maveth", "A Dama das Sombras", MavethColor),
-    ALLAN("Allan", "Melhor Amigo", AllanColor),
-    NOOR("Noor", "O Contraponto Dourado", NoorColor),
-    NARRATOR("Narração", "", NarratorColor)
+    EDGAR("Edgar", "Protagonista", StoryPalette.EDGAR),
+    MAVETH("Maveth", "A Dama das Sombras", StoryPalette.MAVETH),
+    ALLAN("Allan", "Melhor Amigo", StoryPalette.ALLAN),
+    NOOR("Noor", "O Contraponto Dourado", StoryPalette.NOOR),
+    NARRATOR("Narração", "", StoryPalette.NARRATOR)
 }
 
 data class StoryChoice(
@@ -32,7 +29,7 @@ data class StoryNode(
     val text: String,
     val innerThoughts: String? = null,
     val choices: List<StoryChoice> = emptyList(),
-    val nextNodeId: String? = null, // Para avanço linear quando não há escolhas imediatas
+    val nextNodeId: String? = null,
     val isChapterEnding: Boolean = false
 )
 
@@ -42,5 +39,5 @@ data class MacroRouteInfo(
     val subtitle: String,
     val description: String,
     val badge: String,
-    val color: Color
+    val colorArgb: Long
 )

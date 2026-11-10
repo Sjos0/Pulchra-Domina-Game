@@ -1,7 +1,6 @@
 package com.pulchradomina.domain.story
 
 import com.pulchradomina.data.model.GameState
-import com.pulchradomina.ui.theme.*
 
 /**
  * Catálogo e regras das macro-rotas 3a–3f.
@@ -16,7 +15,7 @@ object MacroRouteCalculator {
             subtitle = "Rota Ideal — Comunhão Obscura",
             description = "Você aceitou a hortênsia preta de Maveth com profunda entrega. Uma quietude gélida acalmou a tempestade em seu peito, ligando o seu luto ao abismo fascinante daquela presença enigmática.",
             badge = "Rota Ideal",
-            color = VioletAccent
+            colorArgb = StoryPalette.VIOLET_ACCENT
         ),
         "3b" to MacroRouteInfo(
             code = "3b",
@@ -24,7 +23,7 @@ object MacroRouteCalculator {
             subtitle = "Rota Mediana — Conexão Silenciosa",
             description = "A flor descansa em sua mão, mas suas palavras foram cautelosas. Maveth reconhece sua dor, embora a distância entre a vida e o esquecimento permaneça em suspenso.",
             badge = "Rota Mediana (Flor)",
-            color = MavethColor
+            colorArgb = StoryPalette.MAVETH
         ),
         "3c" to MacroRouteInfo(
             code = "3c",
@@ -32,7 +31,7 @@ object MacroRouteCalculator {
             subtitle = "Rota Mediana — Fascínio sem Aceitação",
             description = "Você não tocou a hortênsia negra, mas os olhos azuis de Maveth gravaram um enigma na sua mente. A recusa gerou um silêncio compartilhado que você não consegue esquecer.",
             badge = "Rota Mediana (Maveth)",
-            color = NarratorColor
+            colorArgb = StoryPalette.NARRATOR
         ),
         "3d" to MacroRouteInfo(
             code = "3d",
@@ -40,7 +39,7 @@ object MacroRouteCalculator {
             subtitle = "Rota Mediana — A Âncora do Agora",
             description = "Ao hesitar diante do abismo, a energia abrasiva de Noor te arrancou da penumbra. A vida lá fora é caótica e dolorosa, mas você escolheu respirar seu calor ácido por mais uma noite.",
             badge = "Rota Mediana (Noor)",
-            color = NoorColor
+            colorArgb = StoryPalette.NOOR
         ),
         "3e" to MacroRouteInfo(
             code = "3e",
@@ -48,7 +47,7 @@ object MacroRouteCalculator {
             subtitle = "Rota Sem Flor — O Peso do Real",
             description = "Você rejeitou o misticismo e as flores noturnas. A dura verdade é que Allan está definhando no quarto 304, e nenhum conto gótico alterará os exames de sangue do seu amigo.",
             badge = "Rota Sem Flor",
-            color = AllanColor
+            colorArgb = StoryPalette.ALLAN
         ),
         "3f" to MacroRouteInfo(
             code = "3f",
@@ -56,7 +55,7 @@ object MacroRouteCalculator {
             subtitle = "Rota Speedrun — Evasão Absoluta",
             description = "Você não quis conversa, não fez perguntas e abandonou o clube correndo para a chuva. O vazio continuou o mesmo, intocado e mudo.",
             badge = "Nota Mínima / Fuga",
-            color = EdgarColor
+            colorArgb = StoryPalette.EDGAR
         )
     )
 

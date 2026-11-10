@@ -1,7 +1,5 @@
 package com.pulchradomina.domain.story
 
-import androidx.compose.ui.graphics.Color
-import com.pulchradomina.ui.theme.*
 
 data class MangaPanel(
     val id: String,
@@ -10,7 +8,7 @@ data class MangaPanel(
     val dialogueSpeaker: String? = null,
     val dialogueQuote: String? = null,
     val visualType: MangaVisualType,
-    val accentColor: Color = VioletLight
+    val accentColorArgb: Long = StoryPalette.VIOLET_LIGHT
 )
 
 enum class MangaVisualType {
@@ -29,7 +27,7 @@ object MangaContent {
             dialogueSpeaker = "Edgar",
             dialogueQuote = "“Ele sorriu antes de apagar... e me pediu para sair deste hospital por uma noite. 'Vá viver um pouco, Edgar', ele disse.”",
             visualType = MangaVisualType.HOSPITAL_ROOM,
-            accentColor = AllanColor
+            accentColorArgb = StoryPalette.ALLAN
         ),
         MangaPanel(
             id = "panel_2",
@@ -38,7 +36,7 @@ object MangaContent {
             dialogueSpeaker = "Pensamento",
             dialogueQuote = "“Como continuar respirando normalmente quando quem você mais ama está partindo em contagem regressiva?”",
             visualType = MangaVisualType.HOSPITAL_CORRIDOR,
-            accentColor = EdgarColor
+            accentColorArgb = StoryPalette.EDGAR
         ),
         MangaPanel(
             id = "panel_3",
@@ -47,7 +45,7 @@ object MangaContent {
             dialogueSpeaker = "Narração",
             dialogueQuote = "“Caminhar sem rumo pela chuva tornou-se o único anestésico contra o pânico silencioso no peito.”",
             visualType = MangaVisualType.RAINY_CITY,
-            accentColor = VioletAccent
+            accentColorArgb = StoryPalette.VIOLET_ACCENT
         ),
         MangaPanel(
             id = "panel_4",
@@ -56,7 +54,7 @@ object MangaContent {
             dialogueSpeaker = "Edgar",
             dialogueQuote = "“Talvez o barulho ensurdecedor consiga calar o silêncio do quarto 304... ao menos por algumas horas.”",
             visualType = MangaVisualType.CLUB_EXTERIOR,
-            accentColor = MavethColor
+            accentColorArgb = StoryPalette.MAVETH
         )
     )
 }

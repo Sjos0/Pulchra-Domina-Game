@@ -179,7 +179,7 @@ private fun MangaPanelCard(panel: MangaPanel) {
         modifier = Modifier.fillMaxSize(),
         shape = RoundedCornerShape(20.dp),
         color = SurfaceCard,
-        border = BorderStroke(2.dp, panel.accentColor.copy(alpha = 0.7f)),
+        border = BorderStroke(2.dp, panel.uiAccent.copy(alpha = 0.7f)),
         shadowElevation = 12.dp
     ) {
         Column(
@@ -196,19 +196,19 @@ private fun MangaPanelCard(panel: MangaPanel) {
             ) {
                 Text(
                     text = panel.title,
-                    color = panel.accentColor,
+                    color = panel.uiAccent,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.sp
                 )
 
                 Surface(
-                    color = panel.accentColor.copy(alpha = 0.2f),
+                    color = panel.uiAccent.copy(alpha = 0.2f),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
                         text = "MANGA CUTSCENE",
-                        color = panel.accentColor,
+                        color = panel.uiAccent,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
@@ -227,7 +227,7 @@ private fun MangaPanelCard(panel: MangaPanel) {
                     .border(1.dp, BorderGothic, RoundedCornerShape(16.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                MangaArtwork(visualType = panel.visualType, accent = panel.accentColor)
+                MangaArtwork(visualType = panel.visualType, accent = panel.uiAccent)
             }
 
             // Texto Narrativo do Quadro
@@ -256,7 +256,7 @@ private fun MangaPanelCard(panel: MangaPanel) {
                     ) {
                         Text(
                             text = "${panel.dialogueSpeaker ?: "Edgar"}: ${panel.dialogueQuote}",
-                            color = panel.accentColor,
+                            color = panel.uiAccent,
                             fontSize = 13.sp,
                             fontStyle = FontStyle.Italic,
                             fontWeight = FontWeight.Medium,
