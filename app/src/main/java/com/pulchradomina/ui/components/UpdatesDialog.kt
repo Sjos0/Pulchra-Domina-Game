@@ -28,10 +28,11 @@ import com.pulchradomina.data.update.UpdateManager
 import com.pulchradomina.ui.theme.MutedText
 import com.pulchradomina.ui.theme.GameFontFamily
 import com.pulchradomina.ui.theme.VioletLight
+import androidx.compose.ui.unit.max
 import kotlinx.coroutines.launch
 
 private val UPDATES_DIALOG_WOOD_TINT = Color.Black.copy(alpha = 0.30f)
-private const val FRAME_WIDTH_FRACTION = 43f / 1032f
+private const val FRAME_TOP_FRACTION = 45f / 1032f
 
 @Composable
 fun UpdatesDialog(
@@ -58,12 +59,8 @@ fun UpdatesDialog(
                 .padding(horizontal = 12.dp)
         ) {
             val requestedPad = (maxWidth * 0.10f).coerceIn(24.dp, 40.dp)
-            val frameInset = maxWidth * FRAME_WIDTH_FRACTION
-            val pad = if (requestedPad - frameInset < 16.dp) {
-                frameInset + 16.dp
-            } else {
-                requestedPad
-            }
+            val topInset = maxWidth * FRAME_TOP_FRACTION
+            val pad = max(requestedPad, topInset + 16.dp)
         PixelFrameBox(
             modifier = Modifier
                 .fillMaxWidth()
