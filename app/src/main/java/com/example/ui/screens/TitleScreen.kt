@@ -33,6 +33,7 @@ import kotlinx.coroutines.isActive
 
 private const val TITLE_BG_HOLD_MS = 10_000L
 private const val TITLE_BG_FADE_MS = 1_200
+private const val TITLE_MENU_TOP_FRACTION = 0.46f
 
 @Composable
 fun TitleScreen(
@@ -96,25 +97,30 @@ fun TitleScreen(
                 )
         )
 
-        Column(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
-                .verticalScroll(scrollState)
-                .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Spacer(modifier = Modifier.height(240.dp))
-
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.Top
             ) {
+                // Menu sobe até ficar logo abaixo do logo; proporcional à altura disponível.
+                Spacer(modifier = Modifier.height(maxHeight * TITLE_MENU_TOP_FRACTION))
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(18.dp)
+                ) {
                 PixelWoodButton(
                     text = "Novo Jogo",
                     onClick = onNewGame,
@@ -158,6 +164,7 @@ fun TitleScreen(
                     fontSize = 11.sp,
                     textAlign = TextAlign.Center
                 )
+                }
             }
         }
     }
