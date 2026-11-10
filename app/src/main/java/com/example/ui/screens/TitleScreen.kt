@@ -103,6 +103,7 @@ fun TitleScreen(
                 .statusBarsPadding()
                 .navigationBarsPadding()
         ) {
+            val menuTopGap = maxHeight * TITLE_MENU_TOP_FRACTION
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -112,7 +113,7 @@ fun TitleScreen(
                 verticalArrangement = Arrangement.Top
             ) {
                 // Menu sobe até ficar logo abaixo do logo; proporcional à altura disponível.
-                Spacer(modifier = Modifier.height(maxHeight * TITLE_MENU_TOP_FRACTION))
+                Spacer(modifier = Modifier.height(menuTopGap))
 
                 Column(
                     modifier = Modifier
