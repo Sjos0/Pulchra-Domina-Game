@@ -33,7 +33,11 @@ class MenuMusicPlayer(context: Context) {
     fun start() {
         if (released) return
         releasePlayer()
-        val mp = MediaPlayer.create(appContext, R.raw.pulchra_domina_soundtrack) ?: return
+        val mp = MediaPlayer.create(appContext, R.raw.pulchra_domina_soundtrack)
+        if (mp == null) {
+            android.util.Log.w("MenuMusicPlayer", "trilha do menu não carregou; seguindo sem áudio")
+            return
+        }
         mp.setAudioAttributes(
             AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_GAME)
