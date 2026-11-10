@@ -586,7 +586,7 @@ private fun Street2DCanvas(
             val rx = (i * 37) % width.toInt()
             val ry = ((i * 53) % height.toInt()).toFloat()
             drawLine(
-                color = Color(0xFFA5B4FC).copy(alpha = 0.30f),
+                color = NarratorColor.copy(alpha = 0.30f),
                 start = Offset(rx.toFloat(), ry),
                 end = Offset(rx.toFloat() - 8f, ry + 22f),
                 strokeWidth = 1.2f

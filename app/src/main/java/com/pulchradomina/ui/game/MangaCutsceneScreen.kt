@@ -405,7 +405,7 @@ private fun MangaArtwork(visualType: MangaVisualType, accent: Color) {
                     val x = (i * 27) % width.toInt()
                     val y = ((i * 43) % height.toInt()).toFloat()
                     drawLine(
-                        color = Color(0xFFA5B4FC).copy(alpha = 0.35f),
+                        color = NarratorColor.copy(alpha = 0.35f),
                         start = Offset(x.toFloat(), y),
                         end = Offset(x.toFloat() - 15f, y + 35f),
                         strokeWidth = 1.5f
