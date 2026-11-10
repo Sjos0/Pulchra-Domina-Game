@@ -160,3 +160,10 @@ Produto validou: **manter como está**.
 ---
 
 *Última atualização: alinhado à v1.0.13. Qualquer desvio deste playbook precisa de motivo explícito no commit.*
+
+
+## 9. Pacotes (Fase 4)
+
+- Código em `com.pulchradomina.*`
+- `applicationId` permanece `com.aistudio.pulchradomina.vnkz` até decisão explícita de release estável
+- Não voltar arquivos para `com.example`

@@ -99,3 +99,10 @@ Próximo: Fase 3 (telas Exploration/Manga/Game mais “burras”).
 - Testes: `ExplorationRulesTest`, `MangaSequencePlayerTest`, `DialoguePresenterTest`
 
 Próximo: Fase 4 (pacotes `com.pulchradomina` / applicationId — só com release estável).
+
+
+### Fase 4 — concluída (v1.0.15)
+- Pacotes reorganizados sob `com.pulchradomina.*` (domain/story, domain/exploration, data/save, data/update, ui/title, ui/boot, ui/game, ui/components, ui/theme, ui/viewmodel)
+- `namespace` = `com.pulchradomina`
+- `applicationId` **inalterado**: `com.aistudio.pulchradomina.vnkz` (update in-app / assinatura)
+- Sem mudança de comportamento jogável intencional

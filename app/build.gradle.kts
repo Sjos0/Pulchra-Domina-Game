@@ -9,15 +9,15 @@ plugins {
 }
 
 android {
-  namespace = "com.example"
+  namespace = "com.pulchradomina"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
     applicationId = "com.aistudio.pulchradomina.vnkz"
     minSdk = 26
     targetSdk = 36
-    versionCode = 15
-    versionName = "1.0.14"
+    versionCode = 16
+    versionName = "1.0.15"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
