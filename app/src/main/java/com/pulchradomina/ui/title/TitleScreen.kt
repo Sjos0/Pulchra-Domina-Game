@@ -16,7 +16,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.pulchradomina.ui.audio.MenuMusicPlayer
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -31,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import com.pulchradomina.BuildConfig
 import com.pulchradomina.R
 import com.pulchradomina.data.model.GameState
+import com.pulchradomina.ui.audio.MenuMusicPlayer
 import com.pulchradomina.ui.components.PixelWoodButton
 import com.pulchradomina.ui.theme.MutedText
 import com.pulchradomina.ui.theme.GameFontFamily
