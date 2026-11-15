@@ -3,6 +3,7 @@ package com.pulchradomina.ui.game.night
 import com.pulchradomina.domain.exploration.ExplorationRules
 import com.pulchradomina.domain.exploration.StreetContent
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -53,7 +54,7 @@ class NightStreetLayoutTest {
         StreetContent.streetHotspots.forEach { spot ->
             assertTrue(spot.positionPercent in 0f..100f)
         }
-        assertEquals(null, ExplorationRules.nearbyHotspot(ExplorationRules.START_X))
+        assertNull(ExplorationRules.nearbyHotspot(ExplorationRules.START_X))
     }
 
     @Test
