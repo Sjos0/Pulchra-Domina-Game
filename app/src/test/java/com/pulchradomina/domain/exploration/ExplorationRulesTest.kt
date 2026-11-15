@@ -24,6 +24,17 @@ class ExplorationRulesTest {
     }
 
     @Test
+    fun tapLeftAndRight_moveAndClamp() {
+        val (left, facingLeft) = ExplorationRules.tapLeft(ExplorationRules.MIN_X)
+        assertEquals(ExplorationRules.MIN_X, left, 0.001f)
+        assertFalse(facingLeft)
+
+        val (right, facingRight) = ExplorationRules.tapRight(50f)
+        assertEquals(50f + ExplorationRules.TAP_STEP, right, 0.001f)
+        assertTrue(facingRight)
+    }
+
+    @Test
     fun nearbyHotspot_detectsClubDoor() {
         val club = StreetContent.streetHotspots.first { it.isClubDoor }
         val near = ExplorationRules.nearbyHotspot(club.positionPercent)

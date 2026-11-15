@@ -2,18 +2,23 @@ package com.pulchradomina.domain.exploration
 
 /**
  * Regras puras da exploração na rua (sem Compose).
+ * Posições em % do mundo (o mundo tem 3 telas de largura).
  * A tela só aplica estes resultados ao estado visual.
  */
 object ExplorationRules {
-    const val START_X = 20f
-    const val MIN_X = 10f
-    const val MAX_X = 90f
-    /** Passo por tick (~30ms) enquanto o botão fica pressionado. */
-    const val STEP_PER_TICK = 1.4f
+    const val START_X = 14f
+    const val MIN_X = 2f
+    const val MAX_X = 97.5f
+    /** ~8 unidades de referência por tick (≈ 280 u/s): caminhada, sem pressa. */
+    const val STEP_PER_TICK = 0.3f
+    /** Toque nos botões ← / →. */
+    const val TAP_STEP = 4f
+    /** Arrasto em px → % do mundo. */
+    const val DRAG_PERCENT_PER_PX = 0.08f
     const val MOVE_TICK_MS = 30L
-    /** Distância máxima (em % da rua) para considerar hotspot “próximo”. */
-    const val HOTSPOT_RADIUS = 8.5f
-    /** Limites visuais do personagem no canvas (fração da largura). */
+    /** Distância máxima (em % do mundo) para considerar hotspot “próximo”. */
+    const val HOTSPOT_RADIUS = 4f
+    /** Limites do personagem na tela (fração da largura), para o balão de hotspot. */
     const val CANVAS_MIN_FRACTION = 0.15f
     const val CANVAS_MAX_FRACTION = 0.85f
 
@@ -26,6 +31,10 @@ object ExplorationRules {
         val next = (x + STEP_PER_TICK).coerceIn(MIN_X, MAX_X)
         return next to true
     }
+
+    fun tapLeft(x: Float): Pair<Float, Boolean> = (x - TAP_STEP).coerceIn(MIN_X, MAX_X) to false
+
+    fun tapRight(x: Float): Pair<Float, Boolean> = (x + TAP_STEP).coerceIn(MIN_X, MAX_X) to true
 
     fun applyDrag(x: Float, facingRight: Boolean, deltaPercent: Float): Pair<Float, Boolean> {
         val next = (x + deltaPercent).coerceIn(MIN_X, MAX_X)
@@ -46,6 +55,7 @@ object ExplorationRules {
         }
     }
 
-    fun canvasFraction(playerXPercent: Float): Float =
-        (playerXPercent / 100f).coerceIn(CANVAS_MIN_FRACTION, CANVAS_MAX_FRACTION)
+    /** Fração da largura (limitada) onde o balão de hotspot fica, a partir da posição na tela (0..100). */
+    fun canvasFraction(screenXPercent: Float): Float =
+        (screenXPercent / 100f).coerceIn(CANVAS_MIN_FRACTION, CANVAS_MAX_FRACTION)
 }

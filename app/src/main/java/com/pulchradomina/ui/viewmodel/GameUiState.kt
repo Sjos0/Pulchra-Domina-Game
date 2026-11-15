@@ -13,5 +13,7 @@ data class GameUiState(
     val calculatedRoute: MacroRouteInfo? = null,
     val isMenuOpen: Boolean = false,
     val showUpdateDialog: Boolean = false,
-    val feedbackMessage: String? = null
+    val feedbackMessage: String? = null,
+    /** Incrementa a cada Novo Jogo: remonta a rua para começar do zero. */
+    val newGameId: Int = 0
 )
