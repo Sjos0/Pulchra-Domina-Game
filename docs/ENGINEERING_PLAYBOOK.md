@@ -139,7 +139,7 @@ Quando algo visual ou de UX falhar:
 
 - [ ] `applicationId` e `debug.keystore` (update in-app)
 - [ ] `minSdk 26` / Android 8+
-- [ ] Fluxo boot → title → manga → rua → clube → escolhas
+- [ ] Fluxo boot → title → Novo Jogo (rua noturna, sem manga) → clube → escolhas
 - [ ] `GameSession` / `StoryRepository` / saves
 - [ ] `UpdateManager` + release não-prerelease no `main`
 - [ ] CI: `testDebugUnitTest` + `assembleDebug`
@@ -175,3 +175,17 @@ Produto validou: **manter como está**.
 - UI: `EdgarColor` etc. **derivam** de `StoryPalette` (`Color(StoryPalette.EDGAR)`), sem hex duplicado.
 - Extensões `uiColor` / `uiAccent` em `Color.kt`.
 - Não importar `androidx.compose.ui.graphics.Color` nem `ui.theme` a partir de `domain/`.
+
+---
+
+## 9. Cenário noturno da rua (v1.0.20)
+
+- **Fonte:** `Assets/Pulchara Domina/Cenario_noite` + idle do Edgar. Os PNGs originais são 4096² e **não** entram no APK.
+- **Pipeline:** `python3 tools/night_street/build_night_street_assets.py --source <pasta Assets> --edgar-dir <pasta do zip do Edgar>` gera os sprites reduzidos, os frames do idle e `ui/game/night/NightStreetLayout.kt`. **Não editar o Kotlin gerado**: mude as listas no script e rode de novo.
+- **Unidades:** referência 941×1672 (9:16). Mundo = 3 telas (2823 u). Edgar = 260 u, medido pela marca vermelha da referência (≈15,5% da altura da cena). A escala é `altura da cena / 1672`, então a proporção se mantém em qualquer aparelho.
+- **Câmera:** segue o Edgar e para nas bordas do mundo (`StreetCamera`, puro e testado).
+- **Edgar:** só idle, 67 frames a 35 fps, reduzidos para 115×384 e decodificados uma vez (~12 MB). Sem caminhada ainda. O sprite original olha para a esquerda, então é espelhado ao andar para a direita.
+- **Luz dos postes:** sem asset de glow. Após a escuridão da noite, cada poste soma elipses em degraus com `BlendMode.Plus`. O Edgar aparece iluminado só dentro da poça.
+- **Novo Jogo:** menu → preto → popup "Carregando o jogo…" → cena. `MANGA_CUTSCENE` continua no código, mas fora do Novo Jogo.
+- **Não reintroduzir:** decodificar PNG 4096 em runtime; chuva (não está na referência).
+
