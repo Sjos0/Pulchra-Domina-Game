@@ -44,9 +44,11 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         initialValue = emptySet()
     )
 
+    /** Novo Jogo vai direto para a rua noturna (sem manga). */
     fun startNewGame() {
         val snap = session.newGame()
-        publish(snap, screen = AppScreen.MANGA_CUTSCENE, clearMenu = true)
+        publish(snap, screen = AppScreen.EXPLORATION, clearMenu = true)
+        _uiState.value = _uiState.value.copy(newGameId = _uiState.value.newGameId + 1)
         persist(snap.gameState)
     }
 

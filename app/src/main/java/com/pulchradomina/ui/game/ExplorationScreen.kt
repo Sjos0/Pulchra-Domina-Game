@@ -3,7 +3,6 @@ package com.pulchradomina.ui.game
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -21,10 +20,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -35,8 +33,19 @@ import com.pulchradomina.domain.exploration.ExplorationRules
 import com.pulchradomina.domain.exploration.StreetContent
 import com.pulchradomina.domain.exploration.StreetHotspot
 import com.pulchradomina.ui.components.GameMenuDialog
+import com.pulchradomina.ui.game.night.NightStreetAssets
+import com.pulchradomina.ui.game.night.NightStreetBitmaps
+import com.pulchradomina.ui.game.night.NightStreetScene
+import com.pulchradomina.ui.game.night.StreetCamera
 import com.pulchradomina.ui.theme.*
 import kotlinx.coroutines.delay
+
+/** Estado de carregamento do cenário noturno. */
+private sealed interface SceneLoad {
+    data object Loading : SceneLoad
+    data class Ready(val bitmaps: NightStreetBitmaps) : SceneLoad
+    data class Failed(val message: String) : SceneLoad
+}
 
 @Composable
 fun ExplorationScreen(
@@ -44,15 +53,34 @@ fun ExplorationScreen(
     onSaveGame: () -> Unit,
     onRestartChapter: () -> Unit,
     onGoToTitle: () -> Unit,
+    onSceneReady: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     var isMenuOpen by remember { mutableStateOf(false) }
 
     BackHandler {
         isMenuOpen = true
     }
 
-    // Posição / direção — regras em ExplorationRules
+    // Assets decodificados em IO. Sucesso ou falha, a tela avisa que está pronta
+    // (para o fade de entrada) e a falha aparece na própria cena para depuração.
+    val sceneLoad by produceState<SceneLoad>(
+        initialValue = NightStreetAssets.cachedOrNull()?.let { SceneLoad.Ready(it) } ?: SceneLoad.Loading
+    ) {
+        if (value is SceneLoad.Loading) {
+            value = try {
+                SceneLoad.Ready(NightStreetAssets.load(context))
+            } catch (e: Exception) {
+                SceneLoad.Failed(e.message ?: e.javaClass.simpleName)
+            }
+        }
+    }
+    LaunchedEffect(sceneLoad) {
+        if (sceneLoad !is SceneLoad.Loading) onSceneReady()
+    }
+
+    // Posição em % do mundo (3 telas) — regras em ExplorationRules
     var playerXPercent by remember { mutableFloatStateOf(ExplorationRules.START_X) }
     var isFacingRight by remember { mutableStateOf(true) }
     var activeHotspotDialogue by remember { mutableStateOf<StreetHotspot?>(null) }
@@ -88,7 +116,7 @@ fun ExplorationScreen(
             .testTag("exploration_screen")
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Barra Superior de Status da Exploração
+            // Barra superior de status
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = AbyssalPurple.copy(alpha = 0.95f),
@@ -120,7 +148,7 @@ fun ExplorationScreen(
                             )
                         }
                         Text(
-                            text = "Modo Exploração 2D (Chuva constante)",
+                            text = "Modo Exploração 2D",
                             color = MutedText,
                             fontSize = 11.sp
                         )
@@ -141,43 +169,59 @@ fun ExplorationScreen(
                 }
             }
 
-            // Cenário 2D Side-Scrolling
-            Box(
+            // Cena noturna com câmera que segue o Edgar
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
                     .pointerInput(Unit) {
                         detectDragGestures { change, dragAmount ->
                             change.consume()
-                            val deltaX = dragAmount.x / 10f
                             val (x, facing) = ExplorationRules.applyDrag(
                                 playerXPercent,
                                 isFacingRight,
-                                deltaX
+                                dragAmount.x * ExplorationRules.DRAG_PERCENT_PER_PX
                             )
                             playerXPercent = x
                             isFacingRight = facing
                         }
                     }
             ) {
-                // Renderização Gráfica do Cenário e Personagem
-                Street2DCanvas(
-                    playerXPercent = playerXPercent,
-                    isFacingRight = isFacingRight
-                )
+                val worldX = StreetCamera.worldXOf(playerXPercent)
+                val viewportWidth = maxWidth.value.coerceAtLeast(1f)
+                val view = StreetCamera.view(viewportWidth, maxHeight.value, worldX)
 
-                // Balão de Hotspot próximo sobre a cabeça do personagem
+                when (val load = sceneLoad) {
+                    is SceneLoad.Ready -> NightStreetScene(
+                        bitmaps = load.bitmaps,
+                        playerWorldX = worldX,
+                        isFacingRight = isFacingRight,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    is SceneLoad.Failed -> Text(
+                        text = "Erro ao carregar o cenário:\n${load.message}",
+                        color = PaleText,
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(24.dp)
+                    )
+                    SceneLoad.Loading -> Unit
+                }
+
+                // Balão de hotspot sobre o personagem (acompanha a posição na tela)
                 if (nearbyHotspot != null) {
+                    val screenPercent = StreetCamera.screenX(view, worldX) / viewportWidth * 100f
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(bottom = 140.dp),
                         contentAlignment = Alignment.BottomStart
                     ) {
-                        val fraction = ExplorationRules.canvasFraction(playerXPercent)
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth(fraction)
+                                .fillMaxWidth(ExplorationRules.canvasFraction(screenPercent))
                                 .wrapContentWidth(Alignment.End)
                                 .testTag("hotspot_bubble")
                         ) {
@@ -223,7 +267,7 @@ fun ExplorationScreen(
                 }
             }
 
-            // Diálogo de Interação da Rua (quando examina ponto ou poça)
+            // Diálogo de interação da rua (quando examina ponto ou poça)
             AnimatedVisibility(
                 visible = activeHotspotDialogue != null,
                 enter = fadeIn() + expandVertically(),
@@ -295,7 +339,7 @@ fun ExplorationScreen(
                 }
             }
 
-            // Painel de Controles 2D na Parte Inferior (← → e Interagir)
+            // Controles na parte inferior (← → e interagir)
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = AbyssalPurple.copy(alpha = 0.95f),
@@ -308,13 +352,12 @@ fun ExplorationScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Controles de Movimentação Lateral
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        // Botão Andar Esquerda
                         OutlinedButton(
                             onClick = {
-                                playerXPercent = (playerXPercent - 5f).coerceIn(10f, 90f)
-                                isFacingRight = false
+                                val (x, facing) = ExplorationRules.tapLeft(playerXPercent)
+                                playerXPercent = x
+                                isFacingRight = facing
                             },
                             interactionSource = leftInteractionSource,
                             modifier = Modifier
@@ -336,11 +379,11 @@ fun ExplorationScreen(
                             )
                         }
 
-                        // Botão Andar Direita
                         OutlinedButton(
                             onClick = {
-                                playerXPercent = (playerXPercent + 5f).coerceIn(10f, 90f)
-                                isFacingRight = true
+                                val (x, facing) = ExplorationRules.tapRight(playerXPercent)
+                                playerXPercent = x
+                                isFacingRight = facing
                             },
                             interactionSource = rightInteractionSource,
                             modifier = Modifier
@@ -363,7 +406,6 @@ fun ExplorationScreen(
                         }
                     }
 
-                    // Botão Central de Ação / Interagir
                     Button(
                         onClick = {
                             if (nearbyHotspot != null) {
@@ -410,7 +452,7 @@ fun ExplorationScreen(
             }
         }
 
-        // Diálogo do Menu de Pausa
+        // Menu de pausa
         if (isMenuOpen) {
             GameMenuDialog(
                 onDismiss = { isMenuOpen = false },
@@ -428,219 +470,5 @@ fun ExplorationScreen(
                 }
             )
         }
-    }
-}
-
-@Composable
-private fun Street2DCanvas(
-    playerXPercent: Float,
-    isFacingRight: Boolean
-) {
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        val width = size.width
-        val height = size.height
-
-        // 1. Céu Noturno e Neblina Roxa
-        drawRect(
-            brush = Brush.verticalGradient(
-                colors = listOf(
-                    Color(0xFF07050C),
-                    Color(0xFF130E22),
-                    Color(0xFF1E1436)
-                )
-            )
-        )
-
-        // 2. Silhueta dos Prédios de Fundo (Parallax)
-        val buildingY = height * 0.30f
-        drawRect(
-            color = Color(0xFF140F24),
-            topLeft = Offset(0f, buildingY),
-            size = androidx.compose.ui.geometry.Size(width * 0.28f, height * 0.40f)
-        )
-        drawRect(
-            color = Color(0xFF18122C),
-            topLeft = Offset(width * 0.30f, buildingY * 0.85f),
-            size = androidx.compose.ui.geometry.Size(width * 0.35f, height * 0.50f)
-        )
-        drawRect(
-            color = Color(0xFF100B1E),
-            topLeft = Offset(width * 0.68f, buildingY * 0.75f),
-            size = androidx.compose.ui.geometry.Size(width * 0.32f, height * 0.55f)
-        )
-
-        // Janelas acesas distantes
-        for (row in 0..5) {
-            for (col in 0..3) {
-                if ((row + col) % 3 == 0) {
-                    drawRect(
-                        color = Color(0xFFFFD166).copy(alpha = 0.3f),
-                        topLeft = Offset(width * 0.35f + col * 26f, buildingY + 20f + row * 24f),
-                        size = androidx.compose.ui.geometry.Size(12f, 16f)
-                    )
-                }
-            }
-        }
-
-        // 3. Fachada do Clube Nocturne (Lado direito, ~80% a 95% do cenário)
-        val clubX = width * 0.75f
-        val clubY = height * 0.22f
-        drawRect(
-            color = Color(0xFF201735),
-            topLeft = Offset(clubX, clubY),
-            size = androidx.compose.ui.geometry.Size(width * 0.25f, height * 0.50f)
-        )
-
-        // Letreiro Neon "NOCTURNE"
-        drawRoundRect(
-            color = VioletAccent,
-            topLeft = Offset(clubX + 10f, clubY + 30f),
-            size = androidx.compose.ui.geometry.Size(width * 0.20f, 32f),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(6f, 6f)
-        )
-        // Brilho do Neon no ar
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(VioletLight.copy(alpha = 0.35f), Color.Transparent)
-            ),
-            center = Offset(clubX + width * 0.10f, clubY + 46f),
-            radius = width * 0.20f
-        )
-
-        // Porta do Clube
-        drawRoundRect(
-            color = Color(0xFF120C1F),
-            topLeft = Offset(clubX + 25f, height * 0.44f),
-            size = androidx.compose.ui.geometry.Size(width * 0.14f, height * 0.26f),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(10f, 10f)
-        )
-        // Luz vazando por baixo da porta do clube
-        drawRect(
-            brush = Brush.verticalGradient(
-                colors = listOf(VioletLight, Color.Transparent)
-            ),
-            topLeft = Offset(clubX + 25f, height * 0.70f),
-            size = androidx.compose.ui.geometry.Size(width * 0.14f, 25f)
-        )
-
-        // 4. Ponto de Ônibus (Lado esquerdo, ~18% do cenário)
-        val busX = width * 0.16f
-        drawLine(
-            color = Color(0xFF6B7280),
-            start = Offset(busX, height * 0.42f),
-            end = Offset(busX, height * 0.70f),
-            strokeWidth = 6f
-        )
-        drawRoundRect(
-            color = Color(0xFF374151),
-            topLeft = Offset(busX - 25f, height * 0.40f),
-            size = androidx.compose.ui.geometry.Size(50f, 35f),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(6f, 6f)
-        )
-
-        // 5. Poste de Luz da Rua (Central)
-        val lampX = width * 0.45f
-        drawLine(
-            color = Color(0xFF4B5563),
-            start = Offset(lampX, height * 0.28f),
-            end = Offset(lampX, height * 0.70f),
-            strokeWidth = 7f
-        )
-        // Cone de Luz do poste
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(Color(0xFFFFFBEB).copy(alpha = 0.22f), Color.Transparent)
-            ),
-            center = Offset(lampX, height * 0.30f),
-            radius = width * 0.22f
-        )
-
-        // 6. Calçada e Asfalto Molhado
-        val sidewalkY = height * 0.70f
-        // Guia da calçada
-        drawRect(
-            color = Color(0xFF282438),
-            topLeft = Offset(0f, sidewalkY),
-            size = androidx.compose.ui.geometry.Size(width, 18f)
-        )
-        // Asfalto molhado inferior
-        drawRect(
-            brush = Brush.verticalGradient(
-                colors = listOf(Color(0xFF141120), Color(0xFF09070E))
-            ),
-            topLeft = Offset(0f, sidewalkY + 18f),
-            size = androidx.compose.ui.geometry.Size(width, height - (sidewalkY + 18f))
-        )
-
-        // Poça de Chuva com reflexo neon centralizada (~50%)
-        drawOval(
-            brush = Brush.radialGradient(
-                colors = listOf(VioletAccent.copy(alpha = 0.35f), Color.Transparent)
-            ),
-            topLeft = Offset(width * 0.42f, sidewalkY + 25f),
-            size = androidx.compose.ui.geometry.Size(width * 0.22f, 28f)
-        )
-
-        // 7. Chuva Caindo
-        for (i in 0..50) {
-            val rx = (i * 37) % width.toInt()
-            val ry = ((i * 53) % height.toInt()).toFloat()
-            drawLine(
-                color = NarratorColor.copy(alpha = 0.30f),
-                start = Offset(rx.toFloat(), ry),
-                end = Offset(rx.toFloat() - 8f, ry + 22f),
-                strokeWidth = 1.2f
-            )
-        }
-
-        // 8. Personagem Edgar (Silhueta estilizada com sobretudo e cachecol)
-        val playerX = width * (playerXPercent / 100f)
-        val playerY = sidewalkY - 8f // Pé na calçada
-
-        // Sombra sob os pés
-        drawOval(
-            color = Color.Black.copy(alpha = 0.6f),
-            topLeft = Offset(playerX - 22f, playerY - 4f),
-            size = androidx.compose.ui.geometry.Size(44f, 14f)
-        )
-
-        // Corpo / Sobretudo escuro
-        val coatWidth = 26f
-        val coatHeight = 55f
-        drawRoundRect(
-            color = Color(0xFF1F2937),
-            topLeft = Offset(playerX - coatWidth / 2f, playerY - coatHeight),
-            size = androidx.compose.ui.geometry.Size(coatWidth, coatHeight),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f)
-        )
-
-        // Cachecol acinzentado de Edgar
-        drawRoundRect(
-            color = EdgarColor,
-            topLeft = Offset(playerX - coatWidth / 2f - 2f, playerY - coatHeight),
-            size = androidx.compose.ui.geometry.Size(coatWidth + 4f, 14f),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f, 4f)
-        )
-
-        // Cabeça / Cabelos escuros
-        drawCircle(
-            color = Color(0xFF111827),
-            radius = 14f,
-            center = Offset(playerX, playerY - coatHeight - 12f)
-        )
-
-        // Rosto (perfil olhando para esquerda ou direita)
-        val faceOffset = if (isFacingRight) 4f else -4f
-        drawCircle(
-            color = Color(0xFFE5E7EB),
-            radius = 9f,
-            center = Offset(playerX + faceOffset, playerY - coatHeight - 12f)
-        )
-        // Olhar melancólico
-        drawCircle(
-            color = EdgarColor,
-            radius = 2f,
-            center = Offset(playerX + faceOffset + (if (isFacingRight) 3f else -3f), playerY - coatHeight - 12f)
-        )
     }
 }
