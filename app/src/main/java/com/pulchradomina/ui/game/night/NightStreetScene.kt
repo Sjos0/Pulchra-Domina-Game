@@ -22,7 +22,7 @@ import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.roundToInt
 
-private val SKY_STOPS: List<Pair<Float, Color>> = listOf(
+private val SKY_STOPS: Array<Pair<Float, Color>> = arrayOf(
     0.00f to Color(0xFF0A061D),
     0.25f to Color(0xFF10092A),
     0.45f to Color(0xFF110C29),
@@ -64,7 +64,7 @@ fun NightStreetScene(
         val view = StreetCamera.view(size.width, size.height, playerWorldX)
         if (view.scale <= 0f) return@Canvas
 
-        drawRect(brush = Brush.verticalGradient(colorStops = SKY_STOPS))
+        drawRect(brush = Brush.verticalGradient(*SKY_STOPS))
         drawLayer(Layer.SKY, bitmaps, view, seconds)
         drawLayer(Layer.FAR, bitmaps, view, seconds)
         drawGround(bitmaps, view)
