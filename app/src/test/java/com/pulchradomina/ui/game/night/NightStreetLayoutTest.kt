@@ -19,10 +19,28 @@ class NightStreetLayoutTest {
     }
 
     @Test
-    fun edgar_heightIsTheRedMarkOfTheReference() {
-        // Marca vermelha medida na referência 941x1672: ~260 unidades (≈15,5% da altura)
-        val fraction = NightStreetLayout.EDGAR_HEIGHT / NightStreetLayout.REF_HEIGHT
-        assertEquals(0.155f, fraction, 0.002f)
+    fun edgar_isLargerThanTheFirstVersion_andStandsOnTheSidewalk() {
+        // v1 = 260 unidades (marca vermelha da referência). v2 = 330: personagem em destaque.
+        assertTrue(NightStreetLayout.EDGAR_HEIGHT >= 330f)
+        assertTrue(NightStreetLayout.EDGAR_FEET_Y > NightStreetLayout.GROUND_TOP)
+        assertTrue(NightStreetLayout.EDGAR_FEET_Y < NightStreetLayout.ROAD_TOP)
+    }
+
+    @Test
+    fun sidewalk_isTallerThanTheFirstVersion_andRoadStartsBelowIt() {
+        assertTrue(NightStreetLayout.SIDEWALK_HEIGHT >= 120f)
+        assertEquals(
+            NightStreetLayout.GROUND_TOP + NightStreetLayout.SIDEWALK_HEIGHT,
+            NightStreetLayout.ROAD_TOP,
+            0.001f
+        )
+    }
+
+    @Test
+    fun lampXPositions_areUnchanged() {
+        // Pedido do usuário: não mudar a posição X dos postes (valores da v1).
+        val xs = NightStreetLayout.lamps.map { it.x }
+        assertEquals(listOf(266f, 623f, 1207f, 1564f, 2148f, 2505f), xs)
     }
 
     @Test
@@ -33,12 +51,15 @@ class NightStreetLayoutTest {
     }
 
     @Test
-    fun lamps_lightStaysInsideTheWorldAndIsLimited() {
+    fun lampCones_startAtTheLampAndWidenToTheGround() {
         NightStreetLayout.lamps.forEach { lamp ->
-            assertTrue(lamp.lightX in 0f..worldWidth)
-            // luz limitada: menor que metade de uma tela de referência
-            assertTrue(lamp.lightRx < NightStreetLayout.REF_WIDTH / 2f)
-            assertTrue(lamp.lightRy > 0f)
+            assertTrue(lamp.x in 0f..worldWidth)
+            // ápice logo abaixo da cabeça do poste, base no chão do Edgar
+            assertTrue(lamp.apexY > lamp.baseY - lamp.h)
+            assertTrue(lamp.apexY < lamp.groundY)
+            assertEquals(NightStreetLayout.EDGAR_FEET_Y, lamp.groundY, 0.001f)
+            // cone estreito no topo e largo no chão
+            assertTrue(lamp.topHalf < lamp.baseHalf)
         }
     }
 
@@ -58,9 +79,9 @@ class NightStreetLayoutTest {
     }
 
     @Test
-    fun clubDoor_isAtTheFarEndOfTheWorld() {
-        val club = NightStreetLayout.doors.single { it.neon }
-        assertTrue(club.x > worldWidth * 0.9f)
+    fun clubHotspot_isAtTheFarEndOfTheWorld() {
+        val club = StreetContent.streetHotspots.single { it.isClubDoor }
+        assertTrue(club.positionPercent > 90f)
     }
 
     @Test
