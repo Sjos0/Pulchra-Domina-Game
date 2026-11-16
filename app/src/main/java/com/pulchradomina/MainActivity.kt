@@ -59,7 +59,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 /** Transição do Novo Jogo: menu → preto → "carregando" → cena. */
 private const val NEW_GAME_FADE_OUT_MS = 450
-private const val NEW_GAME_FADE_IN_MS = 800
+private const val NEW_GAME_FADE_IN_MS = 1500
 private const val NEW_GAME_MIN_LOADING_MS = 900L
 private const val NEW_GAME_LOAD_TIMEOUT_MS = 15_000L
 
