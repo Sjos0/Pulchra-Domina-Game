@@ -12,8 +12,10 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.unit.IntOffset
@@ -31,14 +33,13 @@ private val SKY_STOPS: Array<Pair<Float, Color>> = arrayOf(
     1.00f to Color(0xFF100B22)
 )
 private val ROAD_FILL = Color(0xFF100C22)
-private val DOOR_FRAME = Color(0xFF120C1F)
-private val DOOR_GLOW = Color(0xFF582E96)
-private val NEON_VIOLET = Color(0xFFA55AFF)
 
 /**
- * Cenário noturno da rua. Desenha, em ordem: céu, nuvens, prédios, calçada e rua,
- * árvores, bancos e postes, Edgar (idle em loop), escuridão da noite e, por último,
- * a luz dos postes somada (aditiva) — assim a luz "passa sobre" o Edgar.
+ * Cenário noturno da rua, na ordem de profundidade (fundo -> frente):
+ *  céu/lua/nuvens -> prédios -> árvores -> arbustos -> bancos   (escurecidos por camada)
+ *  -> calçada -> rua -> postes -> Edgar                           (plano do jogador)
+ *  -> escuridão da noite -> cone de luz e lâmpada (aditivo)
+ * A luz nasce da lâmpada e alarga até o chão; o Edgar só fica iluminado dentro do cone.
  */
 @Composable
 fun NightStreetScene(
@@ -65,26 +66,30 @@ fun NightStreetScene(
         if (view.scale <= 0f) return@Canvas
 
         drawRect(brush = Brush.verticalGradient(*SKY_STOPS))
-        drawLayer(Layer.SKY, bitmaps, view, seconds)
-        drawLayer(Layer.FAR, bitmaps, view, seconds)
+        drawLayer(Layer.SKY, bitmaps, view, seconds, tint = null)
+        drawLayer(Layer.FAR, bitmaps, view, seconds, tint = NightStreetLayout.FAR_TINT_ARGB)
+        drawLayer(Layer.TREE, bitmaps, view, seconds, tint = NightStreetLayout.TREE_TINT_ARGB)
+        drawLayer(Layer.BUSH, bitmaps, view, seconds, tint = NightStreetLayout.BUSH_TINT_ARGB)
+        drawLayer(Layer.FRONT, bitmaps, view, seconds, tint = NightStreetLayout.FRONT_TINT_ARGB)
         drawGround(bitmaps, view)
-        drawLayer(Layer.MID, bitmaps, view, seconds)
-        drawLayer(Layer.FRONT, bitmaps, view, seconds)
-        drawLamps(bitmaps, view)
-        drawDoors(view)
+        drawLampPosts(bitmaps, view)
         drawEdgar(bitmaps, view, playerWorldX, isFacingRight, seconds)
         drawNightOverlay()
-        drawLamplights(view)
+        drawLampCones(view)
+        drawLampBulbs(view)
     }
 }
 
+/** Props de uma camada. Camadas de fundo recebem tint (escurecimento multiplicativo). */
 private fun DrawScope.drawLayer(
     layer: Layer,
     bitmaps: NightStreetBitmaps,
     view: StreetCamera.View,
-    seconds: Float
+    seconds: Float,
+    tint: Long?
 ) {
     val worldWidth = NightStreetLayout.WORLD_WIDTH
+    val filter = tint?.let { ColorFilter.tint(Color(it), BlendMode.Modulate) }
     for (prop in NightStreetLayout.props) {
         if (prop.layer != layer) continue
         val bmp = bitmaps.sprites.getValue(prop.sprite)
@@ -102,7 +107,8 @@ private fun DrawScope.drawLayer(
                 widthU = widthU,
                 heightU = prop.h,
                 unitPx = view.scale,
-                flip = prop.flip
+                flip = prop.flip,
+                colorFilter = filter
             )
         }
     }
@@ -112,26 +118,40 @@ private fun DrawScope.drawGround(bitmaps: NightStreetBitmaps, view: StreetCamera
     val sidewalk = bitmaps.sprites.getValue(NightSprite.SIDEWALK)
     val road = bitmaps.sprites.getValue(NightSprite.ROAD)
     val s = view.scale
+    val worldWidth = NightStreetLayout.WORLD_WIDTH
 
     val roadBottomPx = (NightStreetLayout.ROAD_TOP + NightStreetLayout.ROAD_TILE_HEIGHT) * s
     if (size.height > roadBottomPx) {
         drawRect(color = ROAD_FILL, topLeft = Offset(0f, roadBottomPx), size = Size(size.width, size.height - roadBottomPx))
     }
 
-    val worldWidth = NightStreetLayout.WORLD_WIDTH
     val sidewalkW = NightStreetLayout.SIDEWALK_TILE_WIDTH
     for (k in 0 until ceil(worldWidth / sidewalkW).toInt()) {
-        drawSpriteUnits(sidewalk, k * sidewalkW - view.cameraX, NightStreetLayout.GROUND_TOP,
-            sidewalkW, NightStreetLayout.SIDEWALK_HEIGHT, s, flip = false)
+        drawSpriteUnits(
+            bmp = sidewalk,
+            leftU = k * sidewalkW - view.cameraX,
+            topU = NightStreetLayout.GROUND_TOP,
+            widthU = sidewalkW,
+            heightU = NightStreetLayout.SIDEWALK_HEIGHT,
+            unitPx = s,
+            flip = false
+        )
     }
     val roadW = NightStreetLayout.REF_WIDTH
     for (k in 0 until ceil(worldWidth / roadW).toInt()) {
-        drawSpriteUnits(road, k * roadW - view.cameraX, NightStreetLayout.ROAD_TOP,
-            roadW, NightStreetLayout.ROAD_TILE_HEIGHT, s, flip = false)
+        drawSpriteUnits(
+            bmp = road,
+            leftU = k * roadW - view.cameraX,
+            topU = NightStreetLayout.ROAD_TOP,
+            widthU = roadW,
+            heightU = NightStreetLayout.ROAD_TILE_HEIGHT,
+            unitPx = s,
+            flip = false
+        )
     }
 }
 
-private fun DrawScope.drawLamps(bitmaps: NightStreetBitmaps, view: StreetCamera.View) {
+private fun DrawScope.drawLampPosts(bitmaps: NightStreetBitmaps, view: StreetCamera.View) {
     val post = bitmaps.sprites.getValue(NightSprite.LAMP)
     for (lamp in NightStreetLayout.lamps) {
         val widthU = lamp.h * post.width / post.height
@@ -144,22 +164,6 @@ private fun DrawScope.drawLamps(bitmaps: NightStreetBitmaps, view: StreetCamera.
             unitPx = view.scale,
             flip = false
         )
-    }
-}
-
-private fun DrawScope.drawDoors(view: StreetCamera.View) {
-    val s = view.scale
-    for (door in NightStreetLayout.doors) {
-        val left = (door.x - view.cameraX) * s
-        val top = door.top * s
-        val w = door.w * s
-        val h = door.h * s
-        if (left + w <= 0f || left >= size.width) continue
-        drawRect(color = DOOR_FRAME, topLeft = Offset(left, top), size = Size(w, h))
-        drawRect(color = DOOR_GLOW, topLeft = Offset(left + 3f * s, top + 4f * s), size = Size(w - 6f * s, h - 4f * s))
-        if (door.neon) {
-            drawRect(color = NEON_VIOLET, topLeft = Offset(left - 2f * s, (door.top - 40f) * s), size = Size(w + 4f * s, 18f * s))
-        }
     }
 }
 
@@ -192,26 +196,47 @@ private fun DrawScope.drawNightOverlay() {
     )
 }
 
-/** Cada poste soma uma elipse em degraus: luz limitada, com borda de cor visível. */
-private fun DrawScope.drawLamplights(view: StreetCamera.View) {
+/**
+ * Cone de luz 2D: ápice estreito na lâmpada, base larga no chão.
+ * Degraus = trapézios aninhados que compartilham o ápice, então o topo fica mais forte.
+ */
+private fun DrawScope.drawLampCones(view: StreetCamera.View) {
     val s = view.scale
     val color = Color(NightStreetLayout.LIGHT_COLOR_ARGB)
     val bands = NightStreetLayout.LIGHT_BANDS
     for (lamp in NightStreetLayout.lamps) {
-        val cx = (lamp.lightX - view.cameraX) * s
-        val cy = lamp.lightY * s
+        val apexX = (lamp.x - view.cameraX) * s
+        val apexY = lamp.apexY * s
+        val groundY = lamp.groundY * s
+        val topHalf = lamp.topHalf * s
         for (band in 0 until bands) {
             val f = 1f - band.toFloat() / bands
-            val rx = lamp.lightRx * s * f
-            val ry = lamp.lightRy * s * f
-            drawOval(
-                color = color,
-                topLeft = Offset(cx - rx, cy - ry),
-                size = Size(rx * 2f, ry * 2f),
-                alpha = NightStreetLayout.LIGHT_BAND_ALPHA,
-                blendMode = BlendMode.Plus
-            )
+            val bottomY = apexY + (groundY - apexY) * f
+            val bottomHalf = topHalf + (lamp.baseHalf * s - topHalf) * f
+            val path = Path().apply {
+                moveTo(apexX - topHalf, apexY)
+                lineTo(apexX + topHalf, apexY)
+                lineTo(apexX + bottomHalf, bottomY)
+                lineTo(apexX - bottomHalf, bottomY)
+                close()
+            }
+            drawPath(path, color, alpha = NightStreetLayout.LIGHT_BAND_ALPHA, blendMode = BlendMode.Plus)
         }
+    }
+}
+
+/** Lâmpada acesa: retângulo quente logo abaixo da cabeça do poste (o sprite a traz apagada). */
+private fun DrawScope.drawLampBulbs(view: StreetCamera.View) {
+    val s = view.scale
+    val bulb = Color(NightStreetLayout.BULB_COLOR_ARGB).copy(alpha = 0.92f)
+    for (lamp in NightStreetLayout.lamps) {
+        val w = lamp.bulbW * s
+        val h = lamp.bulbH * s
+        drawRect(
+            color = bulb,
+            topLeft = Offset((lamp.x - view.cameraX) * s - w / 2f, (lamp.apexY - lamp.bulbH * 0.4f) * s),
+            size = Size(w, h)
+        )
     }
 }
 
@@ -223,7 +248,8 @@ private fun DrawScope.drawSpriteUnits(
     widthU: Float,
     heightU: Float,
     unitPx: Float,
-    flip: Boolean
+    flip: Boolean,
+    colorFilter: ColorFilter? = null
 ) {
     val left = leftU * unitPx
     val width = widthU * unitPx
@@ -232,10 +258,10 @@ private fun DrawScope.drawSpriteUnits(
     val dstSize = IntSize(max(1, width.roundToInt()), max(1, (heightU * unitPx).roundToInt()))
     if (flip) {
         withTransform({ scale(-1f, 1f, pivot = Offset(left + width / 2f, topU * unitPx)) }) {
-            drawImage(bmp, dstOffset = dstOffset, dstSize = dstSize, filterQuality = FilterQuality.None)
+            drawImage(bmp, dstOffset = dstOffset, dstSize = dstSize, colorFilter = colorFilter, filterQuality = FilterQuality.None)
         }
     } else {
-        drawImage(bmp, dstOffset = dstOffset, dstSize = dstSize, filterQuality = FilterQuality.None)
+        drawImage(bmp, dstOffset = dstOffset, dstSize = dstSize, colorFilter = colorFilter, filterQuality = FilterQuality.None)
     }
 }
 
