@@ -11,8 +11,6 @@ object ExplorationRules {
     const val MAX_X = 97.5f
     /** ~8 unidades de referência por tick (≈ 280 u/s): caminhada, sem pressa. */
     const val STEP_PER_TICK = 0.3f
-    /** Toque nos botões ← / →. */
-    const val TAP_STEP = 4f
     /** Arrasto em px → % do mundo. */
     const val DRAG_PERCENT_PER_PX = 0.08f
     const val MOVE_TICK_MS = 30L
@@ -31,10 +29,6 @@ object ExplorationRules {
         val next = (x + STEP_PER_TICK).coerceIn(MIN_X, MAX_X)
         return next to true
     }
-
-    fun tapLeft(x: Float): Pair<Float, Boolean> = (x - TAP_STEP).coerceIn(MIN_X, MAX_X) to false
-
-    fun tapRight(x: Float): Pair<Float, Boolean> = (x + TAP_STEP).coerceIn(MIN_X, MAX_X) to true
 
     fun applyDrag(x: Float, facingRight: Boolean, deltaPercent: Float): Pair<Float, Boolean> {
         val next = (x + deltaPercent).coerceIn(MIN_X, MAX_X)

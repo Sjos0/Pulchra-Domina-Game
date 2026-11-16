@@ -24,14 +24,10 @@ class ExplorationRulesTest {
     }
 
     @Test
-    fun tapLeftAndRight_moveAndClamp() {
-        val (left, facingLeft) = ExplorationRules.tapLeft(ExplorationRules.MIN_X)
-        assertEquals(ExplorationRules.MIN_X, left, 0.001f)
-        assertFalse(facingLeft)
-
-        val (right, facingRight) = ExplorationRules.tapRight(50f)
-        assertEquals(50f + ExplorationRules.TAP_STEP, right, 0.001f)
-        assertTrue(facingRight)
+    fun stepRight_movesOnlyByOneTick() {
+        // Cada tick do hold anda um passo pequeno; não existe salto por toque.
+        val (x, _) = ExplorationRules.stepRight(50f)
+        assertEquals(50f + ExplorationRules.STEP_PER_TICK, x, 0.001f)
     }
 
     @Test

@@ -40,6 +40,12 @@ import com.pulchradomina.ui.game.night.StreetCamera
 import com.pulchradomina.ui.theme.*
 import kotlinx.coroutines.delay
 
+/**
+ * Chrome legado da exploração (barra de horário/rua, botão Explorar, balões e diálogo de hotspot).
+ * Fora do fluxo visível até ser reformulado. O código continua aqui, só não é composto.
+ */
+private const val SHOW_LEGACY_EXPLORATION_CHROME = false
+
 /** Estado de carregamento do cenário noturno. */
 private sealed interface SceneLoad {
     data object Loading : SceneLoad
@@ -116,7 +122,8 @@ fun ExplorationScreen(
             .testTag("exploration_screen")
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Barra superior de status
+            // Barra superior de status (legado, fora do fluxo)
+            if (SHOW_LEGACY_EXPLORATION_CHROME) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = AbyssalPurple.copy(alpha = 0.95f),
@@ -168,6 +175,7 @@ fun ExplorationScreen(
                     }
                 }
             }
+            }
 
             // Cena noturna com câmera que segue o Edgar
             BoxWithConstraints(
@@ -211,7 +219,7 @@ fun ExplorationScreen(
                 }
 
                 // Balão de hotspot sobre o personagem (acompanha a posição na tela)
-                if (nearbyHotspot != null) {
+                if (SHOW_LEGACY_EXPLORATION_CHROME && nearbyHotspot != null) {
                     val screenPercent = StreetCamera.screenX(view, worldX) / viewportWidth * 100f
                     Box(
                         modifier = Modifier
@@ -269,7 +277,7 @@ fun ExplorationScreen(
 
             // Diálogo de interação da rua (quando examina ponto ou poça)
             AnimatedVisibility(
-                visible = activeHotspotDialogue != null,
+                visible = SHOW_LEGACY_EXPLORATION_CHROME && activeHotspotDialogue != null,
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
@@ -349,16 +357,13 @@ fun ExplorationScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp, vertical = 14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = if (SHOW_LEGACY_EXPLORATION_CHROME) Arrangement.SpaceBetween else Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         OutlinedButton(
-                            onClick = {
-                                val (x, facing) = ExplorationRules.tapLeft(playerXPercent)
-                                playerXPercent = x
-                                isFacingRight = facing
-                            },
+                            // Sem efeito no clique: o movimento vem só do hold (LaunchedEffect acima).
+                            onClick = { },
                             interactionSource = leftInteractionSource,
                             modifier = Modifier
                                 .size(64.dp)
@@ -380,11 +385,7 @@ fun ExplorationScreen(
                         }
 
                         OutlinedButton(
-                            onClick = {
-                                val (x, facing) = ExplorationRules.tapRight(playerXPercent)
-                                playerXPercent = x
-                                isFacingRight = facing
-                            },
+                            onClick = { },
                             interactionSource = rightInteractionSource,
                             modifier = Modifier
                                 .size(64.dp)
@@ -406,6 +407,7 @@ fun ExplorationScreen(
                         }
                     }
 
+                    if (SHOW_LEGACY_EXPLORATION_CHROME) {
                     Button(
                         onClick = {
                             if (nearbyHotspot != null) {
@@ -447,6 +449,7 @@ fun ExplorationScreen(
                                 fontSize = 14.sp
                             )
                         }
+                    }
                     }
                 }
             }
