@@ -42,6 +42,7 @@ import com.pulchradomina.ui.game.night.NightStreetScene
 import com.pulchradomina.ui.game.night.StreetCamera
 import com.pulchradomina.ui.game.opening.EdgarOpeningController
 import com.pulchradomina.ui.game.opening.EdgarThoughtOverlay
+import com.pulchradomina.ui.game.opening.OpeningLayout.edgarBehindPortraitPercent
 import com.pulchradomina.ui.theme.*
 import kotlinx.coroutines.delay
 
@@ -229,6 +230,13 @@ fun ExplorationScreen(
                 val viewportWidth = maxWidth.value.coerceAtLeast(1f)
                 val view = StreetCamera.view(viewportWidth, maxHeight.value, worldX)
 
+                // Monólogo: o Edgar recua para ficar atrás do busto (não aparece ao lado dele)
+                LaunchedEffect(openingController.active) {
+                    if (openingController.active) {
+                        playerXPercent = edgarBehindPortraitPercent(maxHeight.value)
+                    }
+                }
+
                 when (val load = sceneLoad) {
                     is SceneLoad.Ready -> NightStreetScene(
                         bitmaps = load.bitmaps,
@@ -304,12 +312,6 @@ fun ExplorationScreen(
                             }
                         }
                     }
-                }
-                if (openingController.active) {
-                    EdgarThoughtOverlay(
-                        controller = openingController,
-                        modifier = Modifier.fillMaxSize()
-                    )
                 }
             }
 
@@ -498,6 +500,14 @@ fun ExplorationScreen(
         }
 
         // Menu de pausa
+        // Monólogo do Edgar: fica por cima da faixa de controles (a caixa ocupa essa área)
+        if (openingController.active) {
+            EdgarThoughtOverlay(
+                controller = openingController,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
         if (isMenuOpen) {
             GameMenuDialog(
                 onDismiss = { isMenuOpen = false },
