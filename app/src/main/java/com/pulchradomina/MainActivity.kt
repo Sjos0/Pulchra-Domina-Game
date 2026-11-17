@@ -165,6 +165,10 @@ fun PulchraDominaApp(viewModel: GameViewModel) {
                             onRestartChapter = { viewModel.restartChapter() },
                             onGoToTitle = { viewModel.navigateTo(AppScreen.TITLE) },
                             onSceneReady = { sceneGate.pending?.complete(Unit) },
+                            edgarOpeningPending = uiState.edgarOpeningPending,
+                            // o monólogo começa só depois do fade (a cena precisa aparecer antes da fala)
+                            introAllowed = !transitionBusy,
+                            onEdgarOpeningFinished = { viewModel.finishEdgarOpening() },
                             modifier = contentModifier
                         )
                     }

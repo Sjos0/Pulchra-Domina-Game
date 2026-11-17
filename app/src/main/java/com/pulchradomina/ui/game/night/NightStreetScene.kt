@@ -46,6 +46,8 @@ fun NightStreetScene(
     bitmaps: NightStreetBitmaps,
     playerWorldX: Float,
     isFacingRight: Boolean,
+    /** Alpha do Edgar (0 = invisível, usado até o monólogo começar). */
+    edgarAlpha: Float = 1f,
     modifier: Modifier = Modifier
 ) {
     // Tempo em draw-phase: só o Canvas redesenha a cada frame, sem recompor a tela.
@@ -73,7 +75,7 @@ fun NightStreetScene(
         drawLayer(Layer.FRONT, bitmaps, view, seconds, tint = NightStreetLayout.FRONT_TINT_ARGB)
         drawGround(bitmaps, view)
         drawLampPosts(bitmaps, view)
-        drawEdgar(bitmaps, view, playerWorldX, isFacingRight, seconds)
+        drawEdgar(bitmaps, view, playerWorldX, isFacingRight, seconds, edgarAlpha)
         drawNightOverlay()
         drawLampCones(view)
         drawLampBulbs(view)
@@ -172,8 +174,10 @@ private fun DrawScope.drawEdgar(
     view: StreetCamera.View,
     playerWorldX: Float,
     isFacingRight: Boolean,
-    seconds: Float
+    seconds: Float,
+    alpha: Float
 ) {
+    if (alpha <= 0f) return
     val frameCount = NightStreetLayout.EDGAR_FRAME_COUNT
     val frame = (seconds * NightStreetLayout.EDGAR_FPS).toInt() % frameCount
     val heightU = NightStreetLayout.EDGAR_HEIGHT
@@ -185,7 +189,8 @@ private fun DrawScope.drawEdgar(
         widthU = widthU,
         heightU = heightU,
         unitPx = view.scale,
-        flip = isFacingRight // o sprite original olha para a esquerda
+        flip = isFacingRight, // o sprite original olha para a esquerda
+        alpha = alpha
     )
 }
 
@@ -249,7 +254,8 @@ private fun DrawScope.drawSpriteUnits(
     heightU: Float,
     unitPx: Float,
     flip: Boolean,
-    colorFilter: ColorFilter? = null
+    colorFilter: ColorFilter? = null,
+    alpha: Float = 1f
 ) {
     val left = leftU * unitPx
     val width = widthU * unitPx
@@ -258,10 +264,10 @@ private fun DrawScope.drawSpriteUnits(
     val dstSize = IntSize(max(1, width.roundToInt()), max(1, (heightU * unitPx).roundToInt()))
     if (flip) {
         withTransform({ scale(-1f, 1f, pivot = Offset(left + width / 2f, topU * unitPx)) }) {
-            drawImage(bmp, dstOffset = dstOffset, dstSize = dstSize, colorFilter = colorFilter, filterQuality = FilterQuality.None)
+            drawImage(bmp, dstOffset = dstOffset, dstSize = dstSize, alpha = alpha, colorFilter = colorFilter, filterQuality = FilterQuality.None)
         }
     } else {
-        drawImage(bmp, dstOffset = dstOffset, dstSize = dstSize, colorFilter = colorFilter, filterQuality = FilterQuality.None)
+        drawImage(bmp, dstOffset = dstOffset, dstSize = dstSize, alpha = alpha, colorFilter = colorFilter, filterQuality = FilterQuality.None)
     }
 }
 
