@@ -17,7 +17,8 @@ import kotlinx.coroutines.launch
 internal const val OPENING_ENTER_MS = 420
 /** Saída em 2× a velocidade da entrada. */
 internal const val OPENING_EXIT_MS = OPENING_ENTER_MS / 2
-internal const val OPENING_EDGAR_FADE_MS = 900
+/** Fade do Edgar da cena de volta, depois que o busto sai (sem dois Edgares ao mesmo tempo). */
+internal const val OPENING_EDGAR_FADE_IN_MS = 400
 private const val TICK_MS = 16L
 
 /**
@@ -55,6 +56,8 @@ class EdgarOpeningController(
         active = true
         try {
             lines.forEachIndexed { index, line -> playLine(index, line) }
+            // O busto saiu: o idle reaparece no mesmo lugar, onde estava o busto
+            edgarAlpha.animateTo(1f, tween(OPENING_EDGAR_FADE_IN_MS))
         } finally {
             voice.release()
         }
@@ -80,7 +83,6 @@ class EdgarOpeningController(
         slideDp.snapTo(OpeningLayout.SLIDE_OFFSCREEN_DP)
         boxAlpha.snapTo(0f)
         coroutineScope {
-            if (index == 0) launch { edgarAlpha.animateTo(1f, tween(OPENING_EDGAR_FADE_MS)) }
             launch { slideDp.animateTo(0f, tween(OPENING_ENTER_MS, easing = FastOutSlowInEasing)) }
             launch { boxAlpha.animateTo(1f, tween(OPENING_ENTER_MS)) }
         }
