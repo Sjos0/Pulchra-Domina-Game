@@ -14,11 +14,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/**
- * Quanto a caixa e o busto deslizam (dp) até ficarem totalmente fora da tela.
- * Busto (310 dp) + espaço até a caixa (28 dp) + caixa (112 dp) = 450 dp; 460 dp deixa tudo abaixo da borda.
- */
-internal const val OPENING_SLIDE_OFFSCREEN_DP = 460f
 internal const val OPENING_ENTER_MS = 420
 /** Saída em 2× a velocidade da entrada. */
 internal const val OPENING_EXIT_MS = OPENING_ENTER_MS / 2
@@ -40,7 +35,7 @@ class EdgarOpeningController(
     private var tapSignal: CompletableDeferred<Unit>? = null
 
     val edgarAlpha = Animatable(0f)
-    val slideDp = Animatable(OPENING_SLIDE_OFFSCREEN_DP)
+    val slideDp = Animatable(OpeningLayout.SLIDE_OFFSCREEN_DP)
     val boxAlpha = Animatable(0f)
 
     /** Verdadeiro durante o monólogo (controles e caminhada bloqueados). */
@@ -82,7 +77,7 @@ class EdgarOpeningController(
         canAdvance = false
 
         // Entrada: Edgar aparece (na primeira frase) e a caixa sobe.
-        slideDp.snapTo(OPENING_SLIDE_OFFSCREEN_DP)
+        slideDp.snapTo(OpeningLayout.SLIDE_OFFSCREEN_DP)
         boxAlpha.snapTo(0f)
         coroutineScope {
             if (index == 0) launch { edgarAlpha.animateTo(1f, tween(OPENING_EDGAR_FADE_MS)) }
@@ -115,7 +110,7 @@ class EdgarOpeningController(
 
         // Saída: inverso da entrada, 2× mais rápido.
         coroutineScope {
-            launch { slideDp.animateTo(OPENING_SLIDE_OFFSCREEN_DP, tween(OPENING_EXIT_MS, easing = FastOutLinearInEasing)) }
+            launch { slideDp.animateTo(OpeningLayout.SLIDE_OFFSCREEN_DP, tween(OPENING_EXIT_MS, easing = FastOutLinearInEasing)) }
             launch { boxAlpha.animateTo(0f, tween(OPENING_EXIT_MS)) }
         }
     }

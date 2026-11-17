@@ -56,17 +56,17 @@ import kotlin.math.roundToInt
 import kotlin.random.Random
 
 // ---- Dimensões fixas (o pedido: caixa hardcoded; só o texto se adapta dentro dela) ----
-private val BOX_HEIGHT: Dp = 112.dp
+private val BOX_HEIGHT: Dp = OpeningLayout.BOX_HEIGHT
 private val BOX_SIDE_MARGIN: Dp = 12.dp
 /** Distância entre a caixa e a base da área da cena (acima dos controles). */
-private val BOX_BOTTOM_MARGIN: Dp = 28.dp
-private val PORTRAIT_HEIGHT: Dp = 310.dp
-private val TEXT_PADDING_START: Dp = 18.dp
-private val TEXT_PADDING_TOP: Dp = 12.dp
-private val TEXT_PADDING_END: Dp = 28.dp
-private val TEXT_PADDING_BOTTOM: Dp = 14.dp
-private const val TEXT_MAX_SP = 20
-private const val TEXT_MIN_SP = 11
+private val BOX_BOTTOM_MARGIN: Dp = OpeningLayout.BOX_BOTTOM_MARGIN
+private val PORTRAIT_HEIGHT: Dp = OpeningLayout.PORTRAIT_HEIGHT
+private val TEXT_PADDING_START: Dp = 20.dp
+private val TEXT_PADDING_TOP: Dp = 16.dp
+private val TEXT_PADDING_END: Dp = 30.dp
+private val TEXT_PADDING_BOTTOM: Dp = 16.dp
+private const val TEXT_MAX_SP = 22
+private const val TEXT_MIN_SP = 12
 private const val LINE_HEIGHT_FACTOR = 1.35f
 
 private val TEXT_COLOR = Color(0xFFF3EEE4)
