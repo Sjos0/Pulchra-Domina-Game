@@ -2,6 +2,8 @@ package com.pulchradomina.ui.game
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -37,6 +40,8 @@ import com.pulchradomina.ui.game.night.NightStreetAssets
 import com.pulchradomina.ui.game.night.NightStreetBitmaps
 import com.pulchradomina.ui.game.night.NightStreetScene
 import com.pulchradomina.ui.game.night.StreetCamera
+import com.pulchradomina.ui.game.opening.EdgarOpeningController
+import com.pulchradomina.ui.game.opening.EdgarThoughtOverlay
 import com.pulchradomina.ui.theme.*
 import kotlinx.coroutines.delay
 
@@ -60,6 +65,11 @@ fun ExplorationScreen(
     onRestartChapter: () -> Unit,
     onGoToTitle: () -> Unit,
     onSceneReady: () -> Unit,
+    /** Monólogo de abertura pendente (novo jogo): bloqueia caminhada e controles até terminar. */
+    edgarOpeningPending: Boolean = false,
+    /** Libera o monólogo depois da transição (fade) para a cena aparecer antes da fala. */
+    introAllowed: Boolean = true,
+    onEdgarOpeningFinished: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -96,8 +106,26 @@ fun ExplorationScreen(
     val isLeftPressed by leftInteractionSource.collectIsPressedAsState()
     val isRightPressed by rightInteractionSource.collectIsPressedAsState()
 
+    // Monólogo de abertura: a caminhada fica bloqueada enquanto ele roda.
+    val controlsLocked by rememberUpdatedState(edgarOpeningPending)
+    val currentOnFinished by rememberUpdatedState(onEdgarOpeningFinished)
+    val openingController = remember {
+        EdgarOpeningController(context, onFinished = { currentOnFinished() })
+    }
+    LaunchedEffect(edgarOpeningPending, introAllowed) {
+        if (edgarOpeningPending && introAllowed) openingController.run()
+    }
+    DisposableEffect(Unit) {
+        onDispose { openingController.release() }
+    }
+    val controlsAlpha by animateFloatAsState(
+        targetValue = if (edgarOpeningPending) 0f else 1f,
+        animationSpec = tween(450),
+        label = "controlsAlpha"
+    )
+
     LaunchedEffect(isLeftPressed, isRightPressed) {
-        while (isLeftPressed || isRightPressed) {
+        while (!controlsLocked && (isLeftPressed || isRightPressed)) {
             if (isLeftPressed) {
                 val (x, facing) = ExplorationRules.stepLeft(playerXPercent)
                 playerXPercent = x
@@ -185,13 +213,15 @@ fun ExplorationScreen(
                     .pointerInput(Unit) {
                         detectDragGestures { change, dragAmount ->
                             change.consume()
-                            val (x, facing) = ExplorationRules.applyDrag(
-                                playerXPercent,
-                                isFacingRight,
-                                dragAmount.x * ExplorationRules.DRAG_PERCENT_PER_PX
-                            )
-                            playerXPercent = x
-                            isFacingRight = facing
+                            if (!controlsLocked) {
+                                val (x, facing) = ExplorationRules.applyDrag(
+                                    playerXPercent,
+                                    isFacingRight,
+                                    dragAmount.x * ExplorationRules.DRAG_PERCENT_PER_PX
+                                )
+                                playerXPercent = x
+                                isFacingRight = facing
+                            }
                         }
                     }
             ) {
@@ -204,6 +234,8 @@ fun ExplorationScreen(
                         bitmaps = load.bitmaps,
                         playerWorldX = worldX,
                         isFacingRight = isFacingRight,
+                        // Edgar só aparece quando o monólogo começa (fade-in próprio)
+                        edgarAlpha = if (edgarOpeningPending) openingController.edgarAlpha.value else 1f,
                         modifier = Modifier.fillMaxSize()
                     )
                     is SceneLoad.Failed -> Text(
@@ -272,6 +304,12 @@ fun ExplorationScreen(
                             }
                         }
                     }
+                }
+                if (openingController.active) {
+                    EdgarThoughtOverlay(
+                        controller = openingController,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
             }
 
@@ -349,7 +387,9 @@ fun ExplorationScreen(
 
             // Controles na parte inferior (← → e interagir)
             Surface(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer { alpha = controlsAlpha },
                 color = AbyssalPurple.copy(alpha = 0.95f),
                 border = BorderStroke(1.dp, BorderGothic)
             ) {
@@ -364,6 +404,7 @@ fun ExplorationScreen(
                         OutlinedButton(
                             // Sem efeito no clique: o movimento vem só do hold (LaunchedEffect acima).
                             onClick = { },
+                            enabled = !edgarOpeningPending,
                             interactionSource = leftInteractionSource,
                             modifier = Modifier
                                 .size(64.dp)
@@ -386,6 +427,7 @@ fun ExplorationScreen(
 
                         OutlinedButton(
                             onClick = { },
+                            enabled = !edgarOpeningPending,
                             interactionSource = rightInteractionSource,
                             modifier = Modifier
                                 .size(64.dp)

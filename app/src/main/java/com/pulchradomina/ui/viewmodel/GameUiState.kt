@@ -15,5 +15,7 @@ data class GameUiState(
     val showUpdateDialog: Boolean = false,
     val feedbackMessage: String? = null,
     /** Incrementa a cada Novo Jogo: remonta a rua para começar do zero. */
-    val newGameId: Int = 0
+    val newGameId: Int = 0,
+    /** Monólogo de abertura do Edgar ainda não visto neste Novo Jogo. */
+    val edgarOpeningPending: Boolean = false
 )

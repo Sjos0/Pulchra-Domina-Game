@@ -48,8 +48,16 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     fun startNewGame() {
         val snap = session.newGame()
         publish(snap, screen = AppScreen.EXPLORATION, clearMenu = true)
-        _uiState.value = _uiState.value.copy(newGameId = _uiState.value.newGameId + 1)
+        _uiState.value = _uiState.value.copy(
+            newGameId = _uiState.value.newGameId + 1,
+            edgarOpeningPending = true
+        )
         persist(snap.gameState)
+    }
+
+    /** Chamado quando as falas de abertura do Edgar terminam: libera a caminhada. */
+    fun finishEdgarOpening() {
+        _uiState.value = _uiState.value.copy(edgarOpeningPending = false)
     }
 
     fun finishMangaCutscene() {
