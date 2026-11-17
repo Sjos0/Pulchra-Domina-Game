@@ -39,6 +39,7 @@ import com.pulchradomina.ui.components.GameMenuDialog
 import com.pulchradomina.ui.game.night.NightStreetAssets
 import com.pulchradomina.ui.game.night.NightStreetBitmaps
 import com.pulchradomina.ui.game.night.NightStreetScene
+import com.pulchradomina.ui.game.night.FootstepPlayer
 import com.pulchradomina.ui.game.night.StreetCamera
 import com.pulchradomina.ui.game.opening.EdgarOpeningController
 import com.pulchradomina.ui.game.opening.EdgarThoughtOverlay
@@ -113,11 +114,16 @@ fun ExplorationScreen(
     val openingController = remember {
         EdgarOpeningController(context, onFinished = { currentOnFinished() })
     }
+    // som de passo (SoundPool), tocado pelo walk a cada contato
+    val footsteps = remember { FootstepPlayer(context) }
     LaunchedEffect(edgarOpeningPending, introAllowed) {
         if (edgarOpeningPending && introAllowed) openingController.run()
     }
     DisposableEffect(Unit) {
-        onDispose { openingController.release() }
+        onDispose {
+            openingController.release()
+            footsteps.release()
+        }
     }
     val controlsAlpha by animateFloatAsState(
         targetValue = if (edgarOpeningPending) 0f else 1f,
@@ -244,6 +250,8 @@ fun ExplorationScreen(
                         isFacingRight = isFacingRight,
                         // Edgar só aparece quando o monólogo começa (fade-in próprio)
                         edgarAlpha = if (edgarOpeningPending) openingController.edgarAlpha.value else 1f,
+                        allowSteps = !edgarOpeningPending,
+                        onFootstep = { footsteps.play() },
                         modifier = Modifier.fillMaxSize()
                     )
                     is SceneLoad.Failed -> Text(

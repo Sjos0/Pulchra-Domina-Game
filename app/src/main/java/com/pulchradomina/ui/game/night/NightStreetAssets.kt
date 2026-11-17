@@ -13,7 +13,8 @@ import kotlinx.coroutines.withContext
  */
 class NightStreetBitmaps(
     val sprites: Map<NightSprite, ImageBitmap>,
-    val edgarFrames: List<ImageBitmap>
+    val edgarFrames: List<ImageBitmap>,
+    val walkFrames: List<ImageBitmap>
 )
 
 /** Carrega uma vez em IO e reaproveita entre visitas à rua. */
@@ -38,7 +39,10 @@ object NightStreetAssets {
             val frames = (0 until NightStreetLayout.EDGAR_FRAME_COUNT).map {
                 decode("night_street/edgar/idle_%02d.png".format(it))
             }
-            NightStreetBitmaps(sprites, frames).also { cached = it }
+            val walk = (0 until WalkCycleLayout.FRAME_COUNT).map {
+                decode("night_street/walk/walk_%02d.png".format(it))
+            }
+            NightStreetBitmaps(sprites, frames, walk).also { cached = it }
         }
     }
 }
