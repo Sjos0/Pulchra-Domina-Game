@@ -14,8 +14,11 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/** Quanto a caixa desliza (dp) entre fora da tela e o lugar. */
-internal const val OPENING_SLIDE_OFFSCREEN_DP = 260f
+/**
+ * Quanto a caixa e o busto deslizam (dp) até ficarem totalmente fora da tela.
+ * Busto (310 dp) + espaço até a caixa (28 dp) + caixa (112 dp) = 450 dp; 460 dp deixa tudo abaixo da borda.
+ */
+internal const val OPENING_SLIDE_OFFSCREEN_DP = 460f
 internal const val OPENING_ENTER_MS = 420
 /** Saída em 2× a velocidade da entrada. */
 internal const val OPENING_EXIT_MS = OPENING_ENTER_MS / 2

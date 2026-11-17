@@ -31,7 +31,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -62,8 +61,6 @@ private val BOX_SIDE_MARGIN: Dp = 12.dp
 /** Distância entre a caixa e a base da área da cena (acima dos controles). */
 private val BOX_BOTTOM_MARGIN: Dp = 28.dp
 private val PORTRAIT_HEIGHT: Dp = 310.dp
-/** Centro horizontal do busto, como fração da largura (print: área azul à esquerda do centro). */
-private const val PORTRAIT_CENTER_X_FRACTION = 0.43f
 private val TEXT_PADDING_START: Dp = 18.dp
 private val TEXT_PADDING_TOP: Dp = 12.dp
 private val TEXT_PADDING_END: Dp = 28.dp
@@ -74,7 +71,8 @@ private const val LINE_HEIGHT_FACTOR = 1.35f
 
 private val TEXT_COLOR = Color(0xFFF3EEE4)
 private val FRAME_COLOR = Color(0xFFF7F4EE)
-private val DIRT_COLORS = listOf(Color(0xFF5B3A1E), Color(0xFF7A4F2A), Color(0xFF3F2814))
+// sujeira cinza bem transparente (pedido: trocar o marrom por cinza)
+private val DIRT_COLORS = listOf(Color(0xFF9E9E9E), Color(0xFFBDBDBD), Color(0xFF7A7A7A))
 
 /** Marca de sujeira na moldura (posição normalizada 0..1 da caixa). */
 private data class DirtMark(val x: Float, val y: Float, val radiusDp: Float, val colorIndex: Int, val alpha: Float)
@@ -97,7 +95,7 @@ private fun dirtMarks(count: Int = 70, seed: Int = 7): List<DirtMark> {
             y = y,
             radiusDp = 0.6f + rnd.nextFloat() * 2.6f,
             colorIndex = rnd.nextInt(DIRT_COLORS.size),
-            alpha = 0.35f + rnd.nextFloat() * 0.45f
+            alpha = 0.10f + rnd.nextFloat() * 0.14f
         )
     }
 }
@@ -130,14 +128,11 @@ fun EdgarThoughtOverlay(
     ) {
         val boxWidth = maxWidth - BOX_SIDE_MARGIN * 2
 
-        // Busto + gradiente: a base do retrato encosta na linha de cima da caixa.
+        // Busto + gradiente: encostado na lateral esquerda da tela; a base fica na linha de cima da caixa.
         Box(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .offset(
-                    x = maxWidth * (PORTRAIT_CENTER_X_FRACTION - 0.5f),
-                    y = -(BOX_BOTTOM_MARGIN + BOX_HEIGHT) + slide.dp
-                )
+                .align(Alignment.BottomStart)
+                .offset(y = -(BOX_BOTTOM_MARGIN + BOX_HEIGHT) + slide.dp)
         ) {
             Image(
                 painter = painterResource(portrait),
@@ -249,14 +244,10 @@ private fun fitFontSize(
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawFrame(marks: List<DirtMark>) {
     val w = size.width
     val h = size.height
-    val corner = CornerRadius(4.dp.toPx(), 4.dp.toPx())
-    drawRoundRect(
-        brush = Brush.verticalGradient(listOf(Color(0xB805030F), Color(0xD605030F))),
-        cornerRadius = corner
-    )
-    drawRoundRect(
+    // caixa quadrada (sem cantos arredondados)
+    drawRect(brush = Brush.verticalGradient(listOf(Color(0xB805030F), Color(0xD605030F))))
+    drawRect(
         color = FRAME_COLOR.copy(alpha = 0.92f),
-        cornerRadius = corner,
         style = Stroke(width = 1.4.dp.toPx())
     )
     marks.forEach { m ->
