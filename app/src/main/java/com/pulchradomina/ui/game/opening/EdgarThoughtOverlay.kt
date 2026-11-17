@@ -170,8 +170,9 @@ fun EdgarThoughtOverlay(
             val density = LocalDensity.current
             val innerWidthPx = with(density) { (boxWidth - TEXT_PADDING_START - TEXT_PADDING_END).toPx().roundToInt() }
             val innerHeightPx = with(density) { (BOX_HEIGHT - TEXT_PADDING_TOP - TEXT_PADDING_BOTTOM).toPx().roundToInt() }
-            val fontSp = remember(line.text, innerWidthPx, innerHeightPx) {
-                fitFontSize(measurer, line.text, innerWidthPx, innerHeightPx)
+            // mesmo tamanho nas três frases: o maior que cabe em todas (a troca não muda de corpo)
+            val fontSp = remember(innerWidthPx, innerHeightPx) {
+                EdgarOpeningData.lines.minOf { fitFontSize(measurer, it.text, innerWidthPx, innerHeightPx) }
             }
             val shown = controller.visibleChars.coerceIn(0, line.text.length)
             val text: AnnotatedString = buildAnnotatedString {
