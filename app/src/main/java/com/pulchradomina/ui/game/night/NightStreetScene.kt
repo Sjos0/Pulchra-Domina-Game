@@ -3,6 +3,7 @@ package com.pulchradomina.ui.game.night
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.withFrameNanos
@@ -48,16 +49,26 @@ fun NightStreetScene(
     isFacingRight: Boolean,
     /** Alpha do Edgar (0 = invisível, usado até o monólogo começar). */
     edgarAlpha: Float = 1f,
+    /** false durante o monólogo: não anda, não conta passo, não toca som. */
+    allowSteps: Boolean = true,
+    /** Chamado a cada contato do pé (um passo). */
+    onFootstep: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    // Tempo em draw-phase: só o Canvas redesenha a cada frame, sem recompor a tela.
+    // Tempo e walk em draw-phase: o Canvas redesenha a cada frame, sem recompor a tela.
     val elapsedNanos = remember { mutableLongStateOf(0L) }
+    val walk = remember { WalkCycleController() }
+    val currentX by rememberUpdatedState(playerWorldX)
+    val currentAllowSteps by rememberUpdatedState(allowSteps)
+    val currentOnFootstep by rememberUpdatedState(onFootstep)
     LaunchedEffect(Unit) {
         var start = -1L
         while (true) {
             withFrameNanos { now ->
                 if (start < 0L) start = now
                 elapsedNanos.longValue = now - start
+                val steps = walk.update(now, currentX, currentAllowSteps)
+                repeat(steps) { currentOnFootstep() }
             }
         }
     }
@@ -75,7 +86,7 @@ fun NightStreetScene(
         drawLayer(Layer.FRONT, bitmaps, view, seconds, tint = NightStreetLayout.FRONT_TINT_ARGB)
         drawGround(bitmaps, view)
         drawLampPosts(bitmaps, view)
-        drawEdgar(bitmaps, view, playerWorldX, isFacingRight, seconds, edgarAlpha)
+        drawEdgar(bitmaps, view, playerWorldX, isFacingRight, seconds, edgarAlpha, walk)
         drawNightOverlay()
         drawLampCones(view)
         drawLampBulbs(view)
@@ -175,15 +186,26 @@ private fun DrawScope.drawEdgar(
     playerWorldX: Float,
     isFacingRight: Boolean,
     seconds: Float,
-    alpha: Float
+    alpha: Float,
+    walk: WalkCycleController
 ) {
     if (alpha <= 0f) return
-    val frameCount = NightStreetLayout.EDGAR_FRAME_COUNT
-    val frame = (seconds * NightStreetLayout.EDGAR_FPS).toInt() % frameCount
-    val heightU = NightStreetLayout.EDGAR_HEIGHT
-    val widthU = heightU * NightStreetLayout.EDGAR_ASPECT
+    // andando: walk cycle (pelo deslocamento); parado: idle em loop
+    val bmp: ImageBitmap
+    val heightU: Float
+    val widthU: Float
+    if (walk.walking) {
+        bmp = bitmaps.walkFrames[walk.frameIndex]
+        heightU = WalkCycleLayout.FRAME_HEIGHT_U
+        widthU = WalkCycleLayout.FRAME_WIDTH_U
+    } else {
+        val frame = (seconds * NightStreetLayout.EDGAR_FPS).toInt() % NightStreetLayout.EDGAR_FRAME_COUNT
+        bmp = bitmaps.edgarFrames[frame]
+        heightU = NightStreetLayout.EDGAR_HEIGHT
+        widthU = heightU * NightStreetLayout.EDGAR_ASPECT
+    }
     drawSpriteUnits(
-        bmp = bitmaps.edgarFrames[frame],
+        bmp = bmp,
         leftU = playerWorldX - view.cameraX - widthU / 2f,
         topU = NightStreetLayout.EDGAR_FEET_Y - heightU,
         widthU = widthU,
