@@ -9,8 +9,11 @@ object ExplorationRules {
     const val START_X = 14f
     const val MIN_X = 2f
     const val MAX_X = 97.5f
-    /** ~8 unidades de referência por tick (≈ 280 u/s): caminhada, sem pressa. */
-    const val STEP_PER_TICK = 0.3f
+    /**
+     * Passo por tick de MOVE_TICK_MS (≈ 235 u/s). Walk e som derivam da distância andada:
+     * mudar aqui desacelera a animação e os passos juntos, sem o pé deslizar.
+     */
+    const val STEP_PER_TICK = 0.25f
     /** Arrasto em px → % do mundo. */
     const val DRAG_PERCENT_PER_PX = 0.08f
     const val MOVE_TICK_MS = 30L
