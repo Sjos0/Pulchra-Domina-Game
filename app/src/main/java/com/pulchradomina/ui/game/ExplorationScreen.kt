@@ -39,7 +39,13 @@ import com.pulchradomina.ui.components.GameMenuDialog
 import com.pulchradomina.ui.game.night.NightStreetAssets
 import com.pulchradomina.ui.game.night.NightStreetBitmaps
 import com.pulchradomina.ui.game.night.NightStreetScene
+import com.pulchradomina.R
 import com.pulchradomina.ui.game.night.FootstepPlayer
+import com.pulchradomina.ui.game.night.NightIntroFrame
+import com.pulchradomina.ui.game.night.NightIntroOverlay
+import com.pulchradomina.ui.game.night.NightIntroTimeline
+import com.pulchradomina.ui.game.night.NightStreetLayout
+import com.pulchradomina.ui.game.opening.OpeningVoicePlayer
 import com.pulchradomina.ui.game.night.StreetCamera
 import com.pulchradomina.ui.game.opening.EdgarOpeningController
 import com.pulchradomina.ui.game.opening.EdgarThoughtOverlay
@@ -116,13 +122,51 @@ fun ExplorationScreen(
     }
     // som de passo (SoundPool), tocado pelo walk a cada contato
     val footsteps = remember { FootstepPlayer(context) }
-    LaunchedEffect(edgarOpeningPending, introAllowed) {
-        if (edgarOpeningPending && introAllowed) openingController.run()
+    val sigh = remember { OpeningVoicePlayer(context.applicationContext) }
+
+    // Intro do Novo Jogo: câmera começa no fim do mapa, suspiro e passos baixos, pan lento até o
+    // início com o card, e o Edgar entra andando pela esquerda. Só então o monólogo começa.
+    var viewportW by remember { mutableFloatStateOf(0f) }
+    var viewportH by remember { mutableFloatStateOf(0f) }
+    var introFrame by remember { mutableStateOf<NightIntroFrame?>(null) }
+    val currentViewportW by rememberUpdatedState(viewportW)
+    val currentViewportH by rememberUpdatedState(viewportH)
+    val introRunning = edgarOpeningPending && introAllowed && viewportH > 0f
+    LaunchedEffect(introRunning) {
+        if (!introRunning) return@LaunchedEffect
+        var start = -1L
+        var nextStepMs = 0L
+        var sighPlayed = false
+        var finished = false
+        while (!finished) {
+            withFrameNanos { now ->
+                if (start < 0L) start = now
+                val elapsedMs = (now - start) / 1_000_000L
+                val visible = StreetCamera.view(currentViewportW, currentViewportH, 0f).visibleWidth
+                val frame = NightIntroTimeline.frame(elapsedMs, visible)
+                introFrame = frame
+                if (!sighPlayed) {
+                    sigh.start(R.raw.sfx_sigh)
+                    sighPlayed = true
+                }
+                if (frame.edgarVisible) {
+                    playerXPercent = frame.edgarWorldX / NightStreetLayout.WORLD_WIDTH * 100f
+                    isFacingRight = true
+                } else if (elapsedMs >= NightIntroTimeline.FOOTSTEP_START_MS && elapsedMs >= nextStepMs) {
+                    // passos do Edgar se aproximando (fora da tela), em volume baixo que sobe
+                    footsteps.play(frame.footstepVolume)
+                    nextStepMs = elapsedMs + NightIntroTimeline.FOOTSTEP_INTERVAL_MS
+                }
+                finished = frame.done
+            }
+        }
+        openingController.run()
     }
     DisposableEffect(Unit) {
         onDispose {
             openingController.release()
             footsteps.release()
+            sigh.release()
         }
     }
     val controlsAlpha by animateFloatAsState(
@@ -232,9 +276,23 @@ fun ExplorationScreen(
                         }
                     }
             ) {
+                LaunchedEffect(maxWidth, maxHeight) {
+                    viewportW = maxWidth.value.coerceAtLeast(1f)
+                    viewportH = maxHeight.value
+                }
                 val worldX = StreetCamera.worldXOf(playerXPercent)
                 val viewportWidth = maxWidth.value.coerceAtLeast(1f)
                 val view = StreetCamera.view(viewportWidth, maxHeight.value, worldX)
+
+                // Intro: antes de começar, a câmera já está no fim do mapa; Edgar fica escondido
+                val intro: NightIntroFrame? =
+                    if (edgarOpeningPending) (introFrame ?: NightIntroTimeline.frame(-1L, view.visibleWidth)) else null
+                val edgarShown = !edgarOpeningPending || intro?.edgarVisible == true
+                val edgarAlpha = when {
+                    !edgarShown -> 0f
+                    openingController.active -> openingController.edgarAlpha.value
+                    else -> 1f
+                }
 
                 // Monólogo: o Edgar recua para ficar atrás do busto (não aparece ao lado dele)
                 LaunchedEffect(openingController.active) {
@@ -248,10 +306,17 @@ fun ExplorationScreen(
                         bitmaps = load.bitmaps,
                         playerWorldX = worldX,
                         isFacingRight = isFacingRight,
-                        // Edgar só aparece quando o monólogo começa (fade-in próprio)
-                        edgarAlpha = if (edgarOpeningPending) openingController.edgarAlpha.value else 1f,
-                        allowSteps = !edgarOpeningPending,
-                        onFootstep = { footsteps.play() },
+                        edgarAlpha = edgarAlpha,
+                        // na entrada o Edgar anda (conta passo); no monólogo não anda
+                        allowSteps = !edgarOpeningPending || intro?.edgarWalking == true,
+                        onFootstep = {
+                            footsteps.play(
+                                if (edgarOpeningPending) NightIntroTimeline.FOOTSTEP_MAX_VOLUME
+                                else FootstepPlayer.DEFAULT_VOLUME
+                            )
+                        },
+                        // câmera fixa durante a intro (fim -> início); segue o Edgar depois
+                        cameraWorldX = intro?.takeIf { !it.done }?.cameraX,
                         modifier = Modifier.fillMaxSize()
                     )
                     is SceneLoad.Failed -> Text(
@@ -508,6 +573,11 @@ fun ExplorationScreen(
         }
 
         // Menu de pausa
+        // Intro: véu, barras de cinema e card (somem antes do monólogo)
+        introFrame?.takeIf { edgarOpeningPending && !it.done }?.let { frame ->
+            NightIntroOverlay(frame = frame, modifier = Modifier.fillMaxSize())
+        }
+
         // Monólogo do Edgar: fica por cima da faixa de controles (a caixa ocupa essa área)
         if (openingController.active) {
             EdgarThoughtOverlay(

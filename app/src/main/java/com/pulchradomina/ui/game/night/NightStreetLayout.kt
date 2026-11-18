@@ -24,7 +24,8 @@ enum class NightSprite(val file: String) {
     BENCH_2("bench_2.png"),
     LAMP("lamp.png"),
     SIDEWALK("sidewalk.png"),
-    ROAD("road.png");
+    ROAD("road.png"),
+    ITEM("item_maveth_flower.png");
 }
 
 /** Camadas de fundo -> frente. A calçada, a rua, os postes e o Edgar ficam fora destas camadas. */
@@ -73,7 +74,7 @@ internal object NightStreetLayout {
     const val ROAD_TOP = 1332f
     const val ROAD_TILE_HEIGHT = 234f
     const val EDGAR_HEIGHT = 330f
-    const val EDGAR_FEET_Y = 1290f
+    const val EDGAR_FEET_Y = 1248f
     const val EDGAR_ASPECT = 0.3f
     const val EDGAR_FRAME_COUNT = 67
     const val EDGAR_FPS = 35
@@ -123,12 +124,17 @@ internal object NightStreetLayout {
         Prop(NightSprite.BENCH_2, x = 2602.0f, top = 1142.0f, h = 72.0f, layer = Layer.FRONT, parallax = 1.0f, flip = false, drift = 0.0f),
     )
 
+    /** Itens no chão da calçada (desenhados depois do chão, antes dos postes e do Edgar). Camada não usada. */
+    val groundProps: List<Prop> = listOf(
+        Prop(NightSprite.ITEM, x = 2440.0f, top = 1204.0f, h = 48.0f, layer = Layer.FRONT, parallax = 1.0f, flip = false, drift = 0.0f),
+    )
+
     val lamps: List<Lamp> = listOf(
-        Lamp(x = 266.0f, baseY = 1222.0f, h = 419.0f, apexY = 837.92f, groundY = 1290.0f, topHalf = 20.95f, baseHalf = 159.22f, bulbW = 46.09f, bulbH = 14.67f),
-        Lamp(x = 623.0f, baseY = 1222.0f, h = 305.0f, apexY = 942.42f, groundY = 1290.0f, topHalf = 15.25f, baseHalf = 115.9f, bulbW = 33.55f, bulbH = 10.68f),
-        Lamp(x = 1207.0f, baseY = 1222.0f, h = 419.0f, apexY = 837.92f, groundY = 1290.0f, topHalf = 20.95f, baseHalf = 159.22f, bulbW = 46.09f, bulbH = 14.67f),
-        Lamp(x = 1564.0f, baseY = 1222.0f, h = 305.0f, apexY = 942.42f, groundY = 1290.0f, topHalf = 15.25f, baseHalf = 115.9f, bulbW = 33.55f, bulbH = 10.68f),
-        Lamp(x = 2148.0f, baseY = 1222.0f, h = 419.0f, apexY = 837.92f, groundY = 1290.0f, topHalf = 20.95f, baseHalf = 159.22f, bulbW = 46.09f, bulbH = 14.67f),
-        Lamp(x = 2505.0f, baseY = 1222.0f, h = 305.0f, apexY = 942.42f, groundY = 1290.0f, topHalf = 15.25f, baseHalf = 115.9f, bulbW = 33.55f, bulbH = 10.68f),
+        Lamp(x = 266.0f, baseY = 1222.0f, h = 419.0f, apexY = 837.92f, groundY = 1248.0f, topHalf = 20.95f, baseHalf = 159.22f, bulbW = 46.09f, bulbH = 14.67f),
+        Lamp(x = 623.0f, baseY = 1222.0f, h = 305.0f, apexY = 942.42f, groundY = 1248.0f, topHalf = 15.25f, baseHalf = 115.9f, bulbW = 33.55f, bulbH = 10.68f),
+        Lamp(x = 1207.0f, baseY = 1222.0f, h = 419.0f, apexY = 837.92f, groundY = 1248.0f, topHalf = 20.95f, baseHalf = 159.22f, bulbW = 46.09f, bulbH = 14.67f),
+        Lamp(x = 1564.0f, baseY = 1222.0f, h = 305.0f, apexY = 942.42f, groundY = 1248.0f, topHalf = 15.25f, baseHalf = 115.9f, bulbW = 33.55f, bulbH = 10.68f),
+        Lamp(x = 2148.0f, baseY = 1222.0f, h = 419.0f, apexY = 837.92f, groundY = 1248.0f, topHalf = 20.95f, baseHalf = 159.22f, bulbW = 46.09f, bulbH = 14.67f),
+        Lamp(x = 2505.0f, baseY = 1222.0f, h = 305.0f, apexY = 942.42f, groundY = 1248.0f, topHalf = 15.25f, baseHalf = 115.9f, bulbW = 33.55f, bulbH = 10.68f),
     )
 }

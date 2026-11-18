@@ -27,6 +27,15 @@ internal object StreetCamera {
         return View(scale, cameraX, visible)
     }
 
+    /**
+     * Mesma escala e largura de [view], com a borda esquerda fixa em [cameraX] (intro cinematográfica).
+     * A borda é limitada às bordas do mundo.
+     */
+    fun viewAt(viewportWidth: Float, viewportHeight: Float, cameraX: Float): View {
+        val base = view(viewportWidth, viewportHeight, 0f)
+        return base.copy(cameraX = cameraX.coerceIn(0f, NightStreetLayout.WORLD_WIDTH - base.visibleWidth))
+    }
+
     /** Posição de tela (mesma unidade de [View.scale]) de um ponto do mundo. */
     fun screenX(view: View, worldX: Float): Float = (worldX - view.cameraX) * view.scale
 
