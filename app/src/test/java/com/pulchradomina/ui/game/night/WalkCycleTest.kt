@@ -1,5 +1,6 @@
 package com.pulchradomina.ui.game.night
 
+import com.pulchradomina.domain.exploration.ExplorationRules
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -90,6 +91,37 @@ class WalkCycleTest {
         assertTrue(c.walking)
         c.update(200_000_000L, 5f, true) // parado 184 ms: volta ao idle
         assertFalse(c.walking)
+    }
+
+    @Test
+    fun atTheGameSpeed_eachStepLandsOnItsContactFrame() {
+        // simula o jogo: anda STEP_PER_TICK% do mundo a cada MOVE_TICK_MS, e checa cada passo
+        val c = WalkCycleController(latencySeconds = 0f)
+        val stepUnits = ExplorationRules.STEP_PER_TICK / 100f * NightStreetLayout.WORLD_WIDTH
+        val tickNanos = ExplorationRules.MOVE_TICK_MS * 1_000_000L
+        var x = 0f
+        var t = 0L
+        c.update(t, x, true)
+        var steps = 0
+        while (steps < 8) {
+            // quadros de 60 Hz; o movimento chega a cada tick do jogo
+            repeat(2) {
+                t += frameNanos
+                val tickEdge = t % tickNanos < frameNanos
+                if (tickEdge) x += stepUnits
+                val n = c.update(t, x, true)
+                if (n > 0) {
+                    steps += n
+                    // som e frame mudam no mesmo quadro de render. O movimento chega em saltos de
+                    // ~7 unidades (≈ 2 quadros de animação), então o frame exibido é o contato
+                    // ou até 2 quadros depois.
+                    val expected = WalkCycleLayout.CONTACT_FRAMES[(steps - 1) % 2]
+                    val shown = c.frameIndex
+                    val lag = (shown - expected + WalkCycleLayout.FRAME_COUNT) % WalkCycleLayout.FRAME_COUNT
+                    assertTrue("passo $steps no frame $shown, contato $expected (atraso $lag)", lag in 0..2)
+                }
+            }
+        }
     }
 
     @Test
