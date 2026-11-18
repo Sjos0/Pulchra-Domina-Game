@@ -54,6 +54,8 @@ fun NightStreetScene(
     allowSteps: Boolean = true,
     /** Chamado a cada contato do pé (um passo). */
     onFootstep: () -> Unit = {},
+    /** Câmera fixa (intro cinematográfica). Null = câmera segue o Edgar. */
+    cameraWorldX: Float? = null,
     modifier: Modifier = Modifier
 ) {
     // Tempo e walk em draw-phase: o Canvas redesenha a cada frame, sem recompor a tela.
@@ -76,7 +78,8 @@ fun NightStreetScene(
 
     Canvas(modifier = modifier) {
         val seconds = elapsedNanos.longValue / 1_000_000_000f
-        val view = StreetCamera.view(size.width, size.height, playerWorldX)
+        val view = cameraWorldX?.let { StreetCamera.viewAt(size.width, size.height, it) }
+            ?: StreetCamera.view(size.width, size.height, playerWorldX)
         if (view.scale <= 0f) return@Canvas
 
         drawRect(brush = Brush.verticalGradient(*SKY_STOPS))
@@ -86,6 +89,7 @@ fun NightStreetScene(
         drawLayer(Layer.BUSH, bitmaps, view, seconds, tint = NightStreetLayout.BUSH_TINT_ARGB)
         drawLayer(Layer.FRONT, bitmaps, view, seconds, tint = NightStreetLayout.FRONT_TINT_ARGB)
         drawGround(bitmaps, view)
+        drawGroundProps(bitmaps, view)
         drawLampPosts(bitmaps, view)
         drawEdgar(bitmaps, view, playerWorldX, isFacingRight, seconds, edgarAlpha, walk)
         drawNightOverlay()
@@ -161,6 +165,23 @@ private fun DrawScope.drawGround(bitmaps: NightStreetBitmaps, view: StreetCamera
             heightU = NightStreetLayout.ROAD_TILE_HEIGHT,
             unitPx = s,
             flip = false
+        )
+    }
+}
+
+/** Itens no chão da calçada (ex.: a flor do Maveth, perto do fim da linha). */
+private fun DrawScope.drawGroundProps(bitmaps: NightStreetBitmaps, view: StreetCamera.View) {
+    for (prop in NightStreetLayout.groundProps) {
+        val bmp = bitmaps.sprites.getValue(prop.sprite)
+        val widthU = prop.h * bmp.width / bmp.height
+        drawSpriteUnits(
+            bmp = bmp,
+            leftU = prop.x - widthU / 2f - view.cameraX,
+            topU = prop.top,
+            widthU = widthU,
+            heightU = prop.h,
+            unitPx = view.scale,
+            flip = prop.flip
         )
     }
 }

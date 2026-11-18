@@ -94,4 +94,21 @@ class NightStreetLayoutTest {
             assertTrue("falta frame $name", File(assetsDir, name).exists())
         }
     }
+
+    @Test
+    fun edgarFeet_standInTheMiddleOfThePavement() {
+        // Passeio claro medido na prévia: 1212 (borda de trás) até ~1283. Abaixo é a sombra do meio-fio.
+        val pavementBottom = 1283f
+        val middle = (NightStreetLayout.GROUND_TOP + pavementBottom) / 2f
+        assertEquals(middle, NightStreetLayout.EDGAR_FEET_Y, 2f)
+    }
+
+    @Test
+    fun groundItem_isSmall_nearTheEndOfTheWorld_andOnTheSidewalk() {
+        val item = NightStreetLayout.groundProps.single { it.sprite == NightSprite.ITEM }
+        assertTrue(item.x > worldWidth * 0.8f && item.x < worldWidth)
+        val base = item.top + item.h
+        assertTrue(base > NightStreetLayout.GROUND_TOP && base <= NightStreetLayout.ROAD_TOP)
+        assertTrue(item.h < NightStreetLayout.EDGAR_HEIGHT / 4f)
+    }
 }

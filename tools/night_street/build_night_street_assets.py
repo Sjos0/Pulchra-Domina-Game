@@ -39,13 +39,22 @@ ROAD_TILE_H = 234
 
 # Personagem: altura de desenho e pés. v1 = 260; v2 = 330 (+27%).
 EDGAR_H = 330
-EDGAR_FEET_Y = 1290          # pés na calçada, no terço da frente
+EDGAR_FEET_Y = 1248          # pés no meio do passeio claro (1212..1283); a faixa escura abaixo é o meio-fio
 EDGAR_TEX_H = 384            # altura da textura no APK (reduzida do 4096 original)
 EDGAR_FRAMES = 67
 EDGAR_FPS = 35
 
 ASSET_SCALE = 1.0            # pixels de textura por unidade de referência
 START_PERCENT = 14.0         # Edgar começa entre os dois postes, como na referência
+
+# Sprites já prontos no repo (sem fundo, pixels preservados): não passam pelo pipeline do zip.
+PREBUILT_SPRITES = {
+    "ITEM": "item_maveth_flower.png",   # tools/night_intro/build_intro_assets.py
+}
+# Itens no chão da calçada (base na linha dos pés, desenhados depois do chão e antes do Edgar).
+GROUND_PROPS_SPEC = [
+    dict(s="ITEM", x=2440, base=1252, h=48),   # perto do fim da linha, no mesmo plano dos pés
+]
 
 # Postes: X e base/altura NÃO mudam (pedido do usuário). Só o sprite é usado como está.
 LAMP_BASE = 1222
@@ -247,6 +256,10 @@ def build(args):
             os.path.join(out_assets, fname), optimize=True)
         meta[key] = dict(file=fname, aspect=im.width / im.height)
 
+    for key, rel in PREBUILT_SPRITES.items():
+        with Image.open(os.path.join(out_assets, rel)) as im:
+            meta[key] = dict(file=rel, aspect=im.width / im.height)
+
     frame_paths = sorted(glob.glob(os.path.join(args.edgar_dir, "frames", "frame_*.png")))
     if len(frame_paths) != EDGAR_FRAMES:
         sys.exit(f"Esperava {EDGAR_FRAMES} frames do Edgar, achei {len(frame_paths)}")
@@ -268,15 +281,21 @@ def build(args):
         resize_rgba(crop, ew, EDGAR_TEX_H).save(os.path.join(edgar_dir, f"idle_{i:02d}.png"), optimize=True)
 
     lamps = [lamp_geometry(l, head_ratio) for l in LAMPS_SPEC]
+    ground_props = [dict(s=g["s"], gx=g["x"], base=g["base"], h=g["h"]) for g in GROUND_PROPS_SPEC]
 
     # ---------------- Kotlin gerado
-    sprite_names = [f'    {key}("{meta[key]["file"]}")' for key in list(SPRITE_SOURCES) + list(TILE_SOURCES)]
+    sprite_names = [f'    {key}("{meta[key]["file"]}")' for key in list(SPRITE_SOURCES) + list(TILE_SOURCES) + list(PREBUILT_SPRITES)]
     prop_lines = []
     for p in props:
         prop_lines.append(
             f'        Prop(NightSprite.{p["s"]}, x = {fk(p["gx"])}, top = {fk(sprite_top(p))}, '
             f'h = {fk(p["h"])}, layer = Layer.{p["layer"]}, parallax = {fk(p["par"])}, '
             f'flip = {"true" if p["flip"] else "false"}, drift = {fk(p["drift"])}),')
+    ground_lines = [
+        f'        Prop(NightSprite.{g["s"]}, x = {fk(g["gx"])}, top = {fk(g["base"] - g["h"])}, '
+        f'h = {fk(g["h"])}, layer = Layer.FRONT, parallax = 1.0f, flip = false, drift = 0.0f),'
+        for g in ground_props
+    ]
     lamp_lines = [
         f'        Lamp(x = {fk(g["x"])}, baseY = {fk(LAMP_BASE)}, h = {fk(l["h"])}, '
         f'apexY = {fk(g["apex_y"])}, groundY = {fk(g["ground_y"])}, topHalf = {fk(g["top_half"])}, '
@@ -358,6 +377,11 @@ internal object NightStreetLayout {{
 {chr(10).join(prop_lines)}
     )
 
+    /** Itens no chão da calçada (desenhados depois do chão, antes dos postes e do Edgar). Camada não usada. */
+    val groundProps: List<Prop> = listOf(
+{chr(10).join(ground_lines)}
+    )
+
     val lamps: List<Lamp> = listOf(
 {chr(10).join(lamp_lines)}
     )
@@ -369,7 +393,7 @@ internal object NightStreetLayout {{
     print(f"sidewalk tile: {tile_w['SIDEWALK']}x{SIDEWALK_H}  head ratio: {head_ratio:.4f}")
     print("Kotlin:", out_kt)
     return dict(props=props, meta=meta, out_assets=out_assets, edgar_aspect=edgar_aspect,
-                lamps=lamps, tile_w=tile_w)
+                lamps=lamps, tile_w=tile_w, ground_props=ground_props)
 
 # ------------------------------------------------------------ prévia (espelha a ordem do Kotlin)
 SKY_STOPS = [(0.0, (10, 6, 29)), (0.25, (16, 10, 41)), (0.45, (17, 12, 41)),
@@ -442,6 +466,9 @@ def render_view(built, cam_units, scale, vp_w, vp_h, edgar_x_units, facing_right
         ImageDraw.Draw(canvas).rectangle([0, road_bottom, vp_w, vp_h], fill=(16, 12, 34, 255))
     for k in range(int(np.ceil(WORLD_W / BLOCK_W))):
         paste(meta["ROAD"]["file"], k * BLOCK_W, ROAD_TOP, BLOCK_W, ROAD_TILE_H)
+    for g in built["ground_props"]:
+        w_u = g["h"] * meta[g["s"]]["aspect"]
+        paste(meta[g["s"]]["file"], g["gx"] - w_u / 2, g["base"] - g["h"], w_u, g["h"])
 
     # postes (sprite) e Edgar
     for lamp, g in zip(LAMPS_SPEC, built["lamps"]):
