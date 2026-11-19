@@ -1,17 +1,22 @@
 package com.pulchradomina.ui.game.night
 
 import kotlin.math.PI
+import kotlin.math.floor
 import kotlin.math.pow
 import kotlin.math.sin
 
 /**
  * Luzes da balada no extremo direito do mapa: "vazam" do cenário 2 (ainda inacessível).
+ * Espalhadas por toda a área demarcada (faixa do fim do mapa, do topo do contorno até o chão).
  * Cada luz pisca no próprio ritmo e fase; as cores são rosa, azul, vermelho, amarelo e verde.
  */
 internal object ClubLights {
     const val FIRST_X = 2630f
-    const val LAST_X = 2810f
-    const val CENTER_Y = 880f
+    const val LAST_X = 2815f
+    /** Área demarcada na tela: do topo do contorno (~670) até o chão (~1300). */
+    const val TOP_Y = 660f
+    const val BOTTOM_Y = 1290f
+    const val COUNT = 16
     /** Raio do halo (unidades de mundo). */
     const val RADIUS = 46f
 
@@ -33,11 +38,13 @@ internal object ClubLights {
         0xFF3BFF7A  // verde
     )
 
-    val LIGHTS: List<Light> = List(10) { i ->
-        val f = i / 9f
+    private fun frac(v: Float): Float = v - floor(v)
+
+    /** Posições em sequência de baixa discrepância (razões áureas): espalhadas, sem fileira nem padrão. */
+    val LIGHTS: List<Light> = List(COUNT) { i ->
         Light(
-            x = FIRST_X + (LAST_X - FIRST_X) * f,
-            y = CENTER_Y + ((i * 37) % 5 - 2) * 18f,
+            x = FIRST_X + (LAST_X - FIRST_X) * frac(i * 0.618034f),
+            y = TOP_Y + (BOTTOM_Y - TOP_Y) * frac(i * 0.381966f + 0.25f),
             colorArgb = COLORS[i % COLORS.size],
             period = 0.9f + (i * 0.37f) % 0.9f,
             phase = i * 1.7f

@@ -15,6 +15,20 @@ class ClubLightsTest {
     }
 
     @Test
+    fun lights_coverTheMarkedArea_fromTheTopOutlineDownToTheGround() {
+        val ys = ClubLights.LIGHTS.map { it.y }
+        assertTrue(ys.all { it >= ClubLights.TOP_Y && it <= ClubLights.BOTTOM_Y })
+        assertTrue((ys.maxOrNull() ?: 0f) - (ys.minOrNull() ?: 0f) > 500f)
+        assertTrue(ClubLights.LIGHTS.size >= 12)
+    }
+
+    @Test
+    fun eachColor_appearsAtLeastThreeTimes() {
+        val counts = ClubLights.LIGHTS.groupingBy { it.colorArgb }.eachCount()
+        assertTrue(counts.values.all { it >= 3 })
+    }
+
+    @Test
     fun lights_useTheFiveColors_andTheyDiffer() {
         assertEquals(5, ClubLights.LIGHTS.map { it.colorArgb }.distinct().size)
     }
