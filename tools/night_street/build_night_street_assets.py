@@ -50,6 +50,7 @@ START_PERCENT = 14.0         # Edgar começa entre os dois postes, como na refer
 # Sprites já prontos no repo (sem fundo, pixels preservados): não passam pelo pipeline do zip.
 PREBUILT_SPRITES = {
     "ITEM": "item_maveth_flower.png",   # tools/night_intro/build_intro_assets.py
+    "LAMP_LIGHT": "lamp_light.png",     # gerada por write_lamp_light() (cone de luz dos postes)
 }
 # Itens no chão da calçada (base na linha dos pés, desenhados depois do chão e antes do Edgar).
 GROUND_PROPS_SPEC = [
@@ -63,8 +64,13 @@ LAMP_BASE = 1222
 CONE_TOP_HALF_RATIO = 0.05   # meia largura no ápice (conectado à lâmpada)
 CONE_BASE_HALF_RATIO = 0.38  # meia largura no chão
 LIGHT_COLOR_ARGB = 0xFFFFCD8C
-LIGHT_BANDS = 9              # degraus de intensidade (mais degraus = transição mais suave)
-LIGHT_BAND_ALPHA = 0.05      # por degrau; o ápice soma todos os degraus
+# Luz do poste: textura contínua gerada aqui (sem trapézios). Ver light_texture_alpha().
+LIGHT_TEX_W = 128            # resolução da textura (largura: -1..1 = ±meia-base do cone)
+LIGHT_TEX_H = 256            # resolução da textura (altura: ápice -> chão)
+LIGHT_PEAK_ALPHA = 0.50      # intensidade máxima, no ápice (junto da lâmpada)
+LIGHT_GROUND_KEEP = 0.78     # quanto da intensidade sobra no chão (0 = some, 1 = igual ao ápice)
+LIGHT_EDGE_FEATHER = 0.45    # fração da meia-largura usada na borda suave das laterais
+LIGHT_DITHER_LEVELS = 14     # níveis de alfa antes do dithering (pixel art)
 BULB_COLOR_ARGB = 0xFFFFE6B4
 BULB_W_RATIO = 0.11          # largura da lâmpada, em fração da altura do poste
 BULB_H_RATIO = 0.035
@@ -162,11 +168,14 @@ def props_spec():
     bench("BENCH_2", 2, 720)
     return P
 
-# X, base e altura de cada poste: IGUAIS à v1 (pedido: não mudar a posição dos postes)
+# Altura nativa do sprite lamp.png no repo (px). Mudar a altura de exibição não reamostra o asset.
+LAMP_SPRITE_NATIVE_H = 419
+# X e base dos postes: IGUAIS à v1 (pedido: não mudar a posição). Alturas: maior 455, menor 360
+# (pedido de proporção: os dois crescem, o maior continua visivelmente mais alto).
 LAMPS_SPEC = [
-    dict(b=0, x=266, h=419), dict(b=0, x=623, h=305),
-    dict(b=1, x=266, h=419), dict(b=1, x=623, h=305),
-    dict(b=2, x=266, h=419), dict(b=2, x=623, h=305),
+    dict(b=0, x=266, h=455), dict(b=0, x=623, h=360),
+    dict(b=1, x=266, h=455), dict(b=1, x=623, h=360),
+    dict(b=2, x=266, h=455), dict(b=2, x=623, h=360),
 ]
 
 # ------------------------------------------------------------ helpers
@@ -221,6 +230,38 @@ def darken_argb(f):
     return 0xFF000000 | (c << 16) | (c << 8) | c
 
 # ------------------------------------------------------------ build
+BAYER4 = np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]], np.float32) / 16.0
+
+def light_texture_alpha():
+    """
+    Alfa do cone de luz em espaço normalizado (H x W), com:
+      - ápice na lâmpada (v = 0) e base no chão (v = 1);
+      - meia-largura igual à do cone de jogo (CONE_TOP/BASE_HALF_RATIO), em fração da meia-base;
+      - borda lateral suave (sem linha dura);
+      - intensidade decrescente do ápice ao chão;
+      - dithering Bayer 4x4 nos níveis de alfa (textura de pixel art, sem degraus).
+    """
+    top_ratio = CONE_TOP_HALF_RATIO / CONE_BASE_HALF_RATIO
+    v = (np.arange(LIGHT_TEX_H, dtype=np.float32) + 0.5) / LIGHT_TEX_H
+    u = np.abs((np.arange(LIGHT_TEX_W, dtype=np.float32) + 0.5) / LIGHT_TEX_W * 2 - 1)
+    half = (top_ratio + (1 - top_ratio) * v)[:, None]
+    edge = np.maximum(half * LIGHT_EDGE_FEATHER, 1e-6)
+    t = np.clip((half - u[None, :]) / edge, 0.0, 1.0)
+    side = t * t * (3 - 2 * t)
+    fall = ((1 - LIGHT_GROUND_KEEP * v) ** 1.2)[:, None]   # ainda há luz no chão (ilumina a calçada)
+    alpha = LIGHT_PEAK_ALPHA * side * fall
+    bayer = np.tile(BAYER4, (LIGHT_TEX_H // 4, LIGHT_TEX_W // 4))
+    return np.floor(alpha * LIGHT_DITHER_LEVELS + bayer) / LIGHT_DITHER_LEVELS
+
+def write_lamp_light(out_assets):
+    alpha = light_texture_alpha()
+    rgba = np.zeros((LIGHT_TEX_H, LIGHT_TEX_W, 4), np.uint8)
+    rgba[..., 0] = (LIGHT_COLOR_ARGB >> 16) & 0xFF
+    rgba[..., 1] = (LIGHT_COLOR_ARGB >> 8) & 0xFF
+    rgba[..., 2] = LIGHT_COLOR_ARGB & 0xFF
+    rgba[..., 3] = np.round(alpha * 255).astype(np.uint8)
+    Image.fromarray(rgba, "RGBA").save(os.path.join(out_assets, "lamp_light.png"), optimize=True)
+
 def build(args):
     out_assets = os.path.join(args.repo, "app/src/main/assets/night_street")
     out_kt = os.path.join(args.repo, "app/src/main/java/com/pulchradomina/ui/game/night/NightStreetLayout.kt")
@@ -232,7 +273,7 @@ def build(args):
     master_h = {}
     for p in props:
         master_h[p["s"]] = max(master_h.get(p["s"], 0), p["h"])
-    master_h["LAMP"] = max(l["h"] for l in LAMPS_SPEC)
+    master_h["LAMP"] = LAMP_SPRITE_NATIVE_H
 
     meta = {}
     for key, rel in SPRITE_SOURCES.items():
@@ -256,6 +297,7 @@ def build(args):
             os.path.join(out_assets, fname), optimize=True)
         meta[key] = dict(file=fname, aspect=im.width / im.height)
 
+    write_lamp_light(out_assets)
     for key, rel in PREBUILT_SPRITES.items():
         with Image.open(os.path.join(out_assets, rel)) as im:
             meta[key] = dict(file=rel, aspect=im.width / im.height)
@@ -361,9 +403,6 @@ internal object NightStreetLayout {{
     const val EDGAR_ASPECT = {fk(edgar_aspect)}
     const val EDGAR_FRAME_COUNT = {EDGAR_FRAMES}
     const val EDGAR_FPS = {EDGAR_FPS}
-    const val LIGHT_BANDS = {LIGHT_BANDS}
-    const val LIGHT_BAND_ALPHA = {fk(LIGHT_BAND_ALPHA)}
-    const val LIGHT_COLOR_ARGB = 0x{LIGHT_COLOR_ARGB:08X}
     const val BULB_COLOR_ARGB = 0x{BULB_COLOR_ARGB:08X}
     const val NIGHT_OVERLAY_ALPHA = {fk(NIGHT_OVERLAY_ALPHA)}
     const val NIGHT_OVERLAY_ARGB = 0x{NIGHT_OVERLAY_ARGB:08X}
@@ -490,18 +529,20 @@ def render_view(built, cam_units, scale, vp_w, vp_h, edgar_x_units, facing_right
 
     # luz: cone de cada lâmpada, ápice na lâmpada e base no chão (aditivo, em degraus)
     H, W = rgb.shape[:2]
-    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
-    yy_u, xx_u = yy / scale, xx / scale + cam_units
-    light = np.array([(LIGHT_COLOR_ARGB >> s) & 0xFF for s in (16, 8, 0)], np.float32)
+    light_tex = np.array(Image.open(os.path.join(built["out_assets"], "lamp_light.png")).convert("RGBA")).astype(np.float32)
     for g in built["lamps"]:
         apex, ground = g["apex_y"], g["ground_y"]
-        for i in range(LIGHT_BANDS):
-            f = 1 - i / LIGHT_BANDS
-            bottom_y = apex + (ground - apex) * f
-            bottom_half = g["top_half"] + (g["base_half"] - g["top_half"]) * f
-            half = g["top_half"] + (bottom_half - g["top_half"]) * (yy_u - apex) / max(1e-6, bottom_y - apex)
-            mask = ((yy_u >= apex) & (yy_u <= bottom_y) & (np.abs(xx_u - g["x"]) <= half)).astype(np.float32)
-            rgb += LIGHT_BAND_ALPHA * light[None, None, :] * mask[..., None]
+        left_u = g["x"] - g["base_half"]
+        w_px = max(1, round(2 * g["base_half"] * scale))
+        h_px = max(1, round((ground - apex) * scale))
+        tex = np.array(Image.fromarray(light_tex.astype(np.uint8), "RGBA").resize((w_px, h_px), Image.NEAREST)).astype(np.float32)
+        x0 = round((left_u - cam_units) * scale)
+        y0 = round(apex * scale)
+        ys0, xs0 = max(0, y0), max(0, x0)
+        ys1, xs1 = min(H, y0 + h_px), min(W, x0 + w_px)
+        if ys1 > ys0 and xs1 > xs0:
+            a = tex[ys0 - y0:ys1 - y0, xs0 - x0:xs1 - x0, 3:4] / 255.0
+            rgb[ys0:ys1, xs0:xs1] += tex[ys0 - y0:ys1 - y0, xs0 - x0:xs1 - x0, :3] * a
 
     # lâmpada acesa: retângulo quente logo abaixo da cabeça do poste
     out = Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8), "RGB").convert("RGBA")
