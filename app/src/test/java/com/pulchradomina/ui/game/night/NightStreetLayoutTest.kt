@@ -111,4 +111,30 @@ class NightStreetLayoutTest {
         assertTrue(base > NightStreetLayout.GROUND_TOP && base <= NightStreetLayout.ROAD_TOP)
         assertTrue(item.h < NightStreetLayout.EDGAR_HEIGHT / 4f)
     }
+
+    @Test
+    fun lampHeights_bothGrew_andTheTallerOneStaysTaller() {
+        val tall = NightStreetLayout.lamps.filter { it.h == 455f }
+        val short = NightStreetLayout.lamps.filter { it.h == 360f }
+        assertEquals(3, tall.size)
+        assertEquals(3, short.size)
+        assertTrue(tall.first().h > short.first().h)
+    }
+
+    @Test
+    fun lampLightTexture_isInTheAssets() {
+        val f = java.io.File("src/main/assets/night_street/lamp_light.png")
+        assertTrue(f.isFile && f.length() > 0L)
+    }
+
+    @Test
+    fun lampPost_doesNotTouchEdgarAtTheStart() {
+        val post = javax.imageio.ImageIO.read(java.io.File("src/main/assets/night_street/lamp.png"))
+        val aspect = post.width.toFloat() / post.height
+        val start = StreetCamera.worldXOf(com.pulchradomina.domain.exploration.ExplorationRules.START_X)
+        val edgarLeft = start - NightStreetLayout.EDGAR_HEIGHT * NightStreetLayout.EDGAR_ASPECT / 2f
+        val firstLamp = NightStreetLayout.lamps.first()
+        val lampRight = firstLamp.x + firstLamp.h * aspect / 2f
+        assertTrue("poste encosta no Edgar", lampRight < edgarLeft)
+    }
 }

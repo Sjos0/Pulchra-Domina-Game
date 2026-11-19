@@ -93,7 +93,7 @@ fun NightStreetScene(
         drawLampPosts(bitmaps, view)
         drawEdgar(bitmaps, view, playerWorldX, isFacingRight, seconds, edgarAlpha, walk)
         drawNightOverlay()
-        drawLampCones(view)
+        drawLampCones(bitmaps, view)
         drawLampBulbs(view)
         drawClubLights(view, seconds)
     }
@@ -269,31 +269,22 @@ private fun DrawScope.drawNightOverlay() {
 }
 
 /**
- * Cone de luz 2D: ápice estreito na lâmpada, base larga no chão.
- * Degraus = trapézios aninhados que compartilham o ápice, então o topo fica mais forte.
+ * Luz de cada lâmpada: textura de cone gerada pelo pipeline (borda suave, intensidade decrescente,
+ * dithering), esticada no retângulo do cone (ápice na lâmpada, base no chão). Aditiva, uma imagem por poste.
  */
-private fun DrawScope.drawLampCones(view: StreetCamera.View) {
-    val s = view.scale
-    val color = Color(NightStreetLayout.LIGHT_COLOR_ARGB)
-    val bands = NightStreetLayout.LIGHT_BANDS
+private fun DrawScope.drawLampCones(bitmaps: NightStreetBitmaps, view: StreetCamera.View) {
+    val light = bitmaps.sprites.getValue(NightSprite.LAMP_LIGHT)
     for (lamp in NightStreetLayout.lamps) {
-        val apexX = (lamp.x - view.cameraX) * s
-        val apexY = lamp.apexY * s
-        val groundY = lamp.groundY * s
-        val topHalf = lamp.topHalf * s
-        for (band in 0 until bands) {
-            val f = 1f - band.toFloat() / bands
-            val bottomY = apexY + (groundY - apexY) * f
-            val bottomHalf = topHalf + (lamp.baseHalf * s - topHalf) * f
-            val path = Path().apply {
-                moveTo(apexX - topHalf, apexY)
-                lineTo(apexX + topHalf, apexY)
-                lineTo(apexX + bottomHalf, bottomY)
-                lineTo(apexX - bottomHalf, bottomY)
-                close()
-            }
-            drawPath(path, color, alpha = NightStreetLayout.LIGHT_BAND_ALPHA, blendMode = BlendMode.Plus)
-        }
+        drawSpriteUnits(
+            bmp = light,
+            leftU = lamp.x - lamp.baseHalf - view.cameraX,
+            topU = lamp.apexY,
+            widthU = 2f * lamp.baseHalf,
+            heightU = lamp.groundY - lamp.apexY,
+            unitPx = view.scale,
+            flip = false,
+            blendMode = BlendMode.Plus
+        )
     }
 }
 
@@ -322,7 +313,8 @@ private fun DrawScope.drawSpriteUnits(
     unitPx: Float,
     flip: Boolean,
     colorFilter: ColorFilter? = null,
-    alpha: Float = 1f
+    alpha: Float = 1f,
+    blendMode: BlendMode = BlendMode.SrcOver
 ) {
     val left = leftU * unitPx
     val width = widthU * unitPx
@@ -331,10 +323,10 @@ private fun DrawScope.drawSpriteUnits(
     val dstSize = IntSize(max(1, width.roundToInt()), max(1, (heightU * unitPx).roundToInt()))
     if (flip) {
         withTransform({ scale(-1f, 1f, pivot = Offset(left + width / 2f, topU * unitPx)) }) {
-            drawImage(bmp, dstOffset = dstOffset, dstSize = dstSize, alpha = alpha, colorFilter = colorFilter, filterQuality = FilterQuality.None)
+            drawImage(bmp, dstOffset = dstOffset, dstSize = dstSize, alpha = alpha, colorFilter = colorFilter, blendMode = blendMode, filterQuality = FilterQuality.None)
         }
     } else {
-        drawImage(bmp, dstOffset = dstOffset, dstSize = dstSize, alpha = alpha, colorFilter = colorFilter, filterQuality = FilterQuality.None)
+        drawImage(bmp, dstOffset = dstOffset, dstSize = dstSize, alpha = alpha, colorFilter = colorFilter, blendMode = blendMode, filterQuality = FilterQuality.None)
     }
 }
 
