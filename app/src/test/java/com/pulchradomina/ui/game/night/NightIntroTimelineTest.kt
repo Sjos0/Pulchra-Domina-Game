@@ -95,11 +95,29 @@ class NightIntroTimelineTest {
     }
 
     @Test
-    fun footstepVolume_staysLow_andRisesAsEdgarApproaches() {
-        val early = t.frame(t.FOOTSTEP_START_MS, visible).footstepVolume
-        val late = t.frame(t.PAN_END_MS - 1, visible).footstepVolume
-        assertEquals(t.FOOTSTEP_MIN_VOLUME, early, 0.001f)
-        assertEquals(t.FOOTSTEP_MAX_VOLUME, late, 0.01f)
-        assertTrue(t.FOOTSTEP_MAX_VOLUME < 0.5f)
+    fun spatialPosition_goesFromTheRightEnd_toTheLeftStart_followingTheCamera() {
+        assertEquals(1f, t.frame(-1L, visible).spaceT, 0.001f)
+        assertEquals(1f, t.frame(t.PAN_START_MS, visible).spaceT, 0.001f)
+        assertEquals(0f, t.frame(t.PAN_END_MS, visible).spaceT, 0.001f)
+        var previous = Float.MAX_VALUE
+        var ms = t.PAN_START_MS
+        while (ms <= t.PAN_END_MS) {
+            val x = t.frame(ms, visible).spaceT
+            assertTrue("eixo voltou em $ms ms", x <= previous + 0.0001f)
+            previous = x
+            ms += 250
+        }
+    }
+
+    @Test
+    fun panIsTenPercentSlowerThanTheVersionBefore() {
+        assertEquals(13_200L, t.PAN_MS)
+    }
+
+    @Test
+    fun titleAndSubtitle_startInsideThePan_andFinishBeforeTheArrival() {
+        assertTrue(t.TITLE_FADE_START_MS > t.PAN_START_MS)
+        assertTrue(t.SUBTITLE_FADE_START_MS + t.SUBTITLE_FADE_MS < t.PAN_END_MS)
+        assertTrue(t.TITLE_FADE_START_MS < t.SUBTITLE_FADE_START_MS)
     }
 }

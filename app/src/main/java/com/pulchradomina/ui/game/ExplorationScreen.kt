@@ -41,6 +41,11 @@ import com.pulchradomina.ui.game.night.NightStreetBitmaps
 import com.pulchradomina.ui.game.night.NightStreetScene
 import com.pulchradomina.R
 import com.pulchradomina.ui.game.night.FootstepPlayer
+import com.pulchradomina.ui.audio.night.NightMix
+import com.pulchradomina.ui.audio.night.NightMixBus
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.pulchradomina.ui.game.night.NightIntroFrame
 import com.pulchradomina.ui.game.night.NightIntroOverlay
 import com.pulchradomina.ui.game.night.NightIntroTimeline
@@ -124,6 +129,31 @@ fun ExplorationScreen(
     val footsteps = remember { FootstepPlayer(context) }
     val sigh = remember { OpeningVoicePlayer(context.applicationContext) }
 
+    // Mix da rua: ambiente, balada (com reverb/muffle pelo eixo), stingers e ducking da fala.
+    val mixScope = rememberCoroutineScope()
+    val mix = remember { NightMixBus(context, mixScope) }
+    LaunchedEffect(introAllowed) {
+        if (introAllowed) mix.start()
+    }
+    LaunchedEffect(openingController.voiceSpeaking, openingController.active) {
+        mix.setSpeech(openingController.voiceSpeaking, openingController.active)
+    }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_PAUSE -> mix.pause()
+                Lifecycle.Event.ON_RESUME -> mix.resume()
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            mix.release()
+        }
+    }
+
     // Intro do Novo Jogo: câmera começa no fim do mapa, suspiro e passos baixos, pan lento até o
     // início com o card, e o Edgar entra andando pela esquerda. Só então o monólogo começa.
     var viewportW by remember { mutableFloatStateOf(0f) }
@@ -145,6 +175,7 @@ fun ExplorationScreen(
                 val visible = StreetCamera.view(currentViewportW, currentViewportH, 0f).visibleWidth
                 val frame = NightIntroTimeline.frame(elapsedMs, visible)
                 introFrame = frame
+                mix.setSpace(frame.spaceT)
                 if (!sighPlayed) {
                     sigh.start(R.raw.sfx_sigh)
                     sighPlayed = true
@@ -154,7 +185,7 @@ fun ExplorationScreen(
                     isFacingRight = true
                 } else if (elapsedMs >= NightIntroTimeline.FOOTSTEP_START_MS && elapsedMs >= nextStepMs) {
                     // passos do Edgar se aproximando (fora da tela), em volume baixo que sobe
-                    footsteps.play(frame.footstepVolume)
+                    footsteps.play(NightMix.footstepVolume(frame.spaceT))
                     nextStepMs = elapsedMs + NightIntroTimeline.FOOTSTEP_INTERVAL_MS
                 }
                 finished = frame.done
@@ -288,6 +319,12 @@ fun ExplorationScreen(
                 val intro: NightIntroFrame? =
                     if (edgarOpeningPending) (introFrame ?: NightIntroTimeline.frame(-1L, view.visibleWidth)) else null
                 val edgarShown = !edgarOpeningPending || intro?.edgarVisible == true
+                // Eixo espacial: na intro vem da câmera; depois, da posição do Edgar
+                val spatialT = if (edgarOpeningPending) (intro?.spaceT ?: 0f)
+                    else (worldX / NightStreetLayout.WORLD_WIDTH).coerceIn(0f, 1f)
+                LaunchedEffect(spatialT, edgarOpeningPending) {
+                    if (!edgarOpeningPending) mix.setSpace(spatialT)
+                }
                 val edgarAlpha = when {
                     !edgarShown -> 0f
                     openingController.active -> openingController.edgarAlpha.value
@@ -309,12 +346,7 @@ fun ExplorationScreen(
                         edgarAlpha = edgarAlpha,
                         // na entrada o Edgar anda (conta passo); no monólogo não anda
                         allowSteps = !edgarOpeningPending || intro?.edgarWalking == true,
-                        onFootstep = {
-                            footsteps.play(
-                                if (edgarOpeningPending) NightIntroTimeline.FOOTSTEP_MAX_VOLUME
-                                else FootstepPlayer.DEFAULT_VOLUME
-                            )
-                        },
+                        onFootstep = { footsteps.play(NightMix.footstepVolume(spatialT)) },
                         // câmera fixa durante a intro (fim -> início); segue o Edgar depois
                         cameraWorldX = intro?.takeIf { !it.done }?.cameraX,
                         modifier = Modifier.fillMaxSize()

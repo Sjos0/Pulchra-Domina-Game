@@ -95,6 +95,7 @@ fun NightStreetScene(
         drawNightOverlay()
         drawLampCones(view)
         drawLampBulbs(view)
+        drawClubLights(view, seconds)
     }
 }
 
@@ -182,6 +183,28 @@ private fun DrawScope.drawGroundProps(bitmaps: NightStreetBitmaps, view: StreetC
             heightU = prop.h,
             unitPx = view.scale,
             flip = prop.flip
+        )
+    }
+}
+
+/** Luzes da balada no fim do mapa, piscando (aditivo: somam sobre a noite). */
+private fun DrawScope.drawClubLights(view: StreetCamera.View, seconds: Float) {
+    val r = ClubLights.RADIUS * view.scale
+    for (light in ClubLights.LIGHTS) {
+        val k = ClubLights.intensity(light, seconds)
+        if (k < 0.02f) continue
+        val cx = (light.x - view.cameraX) * view.scale
+        val cy = light.y * view.scale
+        val c = Color(light.colorArgb)
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(c.copy(alpha = 0.9f * k), c.copy(alpha = 0f)),
+                center = Offset(cx, cy),
+                radius = r
+            ),
+            radius = r,
+            center = Offset(cx, cy),
+            blendMode = BlendMode.Plus
         )
     }
 }
