@@ -22,8 +22,8 @@ internal data class NightIntroFrame(
     val edgarWorldX: Float,
     /** Edgar andando na entrada. */
     val edgarWalking: Boolean,
-    /** Volume dos passos que se aproximam (fora da tela), em 0..1. */
-    val footstepVolume: Float,
+    /** Posição espacial da câmera: 1 = fim (direita, clube), 0 = início (esquerda). Alimenta o mix. */
+    val spaceT: Float,
     /** Intro terminou: o monólogo pode começar. */
     val done: Boolean
 )
@@ -40,23 +40,22 @@ internal data class NightIntroFrame(
  */
 internal object NightIntroTimeline {
     const val HOLD_END_MS = 2_000L
-    const val PAN_MS = 12_000L
+    /** Pan ~10% mais lento que a versão anterior (12 000 ms), para apreciar a balada. */
+    const val PAN_MS = 13_200L
     const val BARS_CLOSE_MS = 1_200L
     const val BARS_OPEN_MS = 1_000L
     const val BARS_FRACTION = 0.12f
     const val VEIL_FADE_MS = 1_000L
     const val VEIL_ALPHA = 0.6f
-    const val TITLE_FADE_START_MS = 3_200L
+    const val TITLE_FADE_START_MS = 3_520L
     const val TITLE_FADE_MS = 1_000L
-    const val SUBTITLE_FADE_START_MS = 4_600L
+    const val SUBTITLE_FADE_START_MS = 5_060L
     const val SUBTITLE_FADE_MS = 800L
     /** Onde o Edgar começa a entrada: fora da tela, à esquerda do início do mapa. */
     const val EDGAR_SPAWN_X = -140f
     const val IDLE_BEFORE_MONOLOGUE_MS = 600L
     const val FOOTSTEP_START_MS = 600L
     const val FOOTSTEP_INTERVAL_MS = 600L
-    const val FOOTSTEP_MIN_VOLUME = 0.12f
-    const val FOOTSTEP_MAX_VOLUME = 0.25f
 
     const val PAN_START_MS = HOLD_END_MS
     const val PAN_END_MS = HOLD_END_MS + PAN_MS
@@ -89,8 +88,6 @@ internal object NightIntroTimeline {
 
         val walkP = progress(t, PAN_END_MS, WALK_IN_MS)
         val edgarX = EDGAR_SPAWN_X + (START_UNITS - EDGAR_SPAWN_X) * walkP
-        val approach = progress(t, FOOTSTEP_START_MS, PAN_END_MS - FOOTSTEP_START_MS)
-        val volume = FOOTSTEP_MIN_VOLUME + (FOOTSTEP_MAX_VOLUME - FOOTSTEP_MIN_VOLUME) * approach
 
         return NightIntroFrame(
             cameraX = cameraX,
@@ -101,7 +98,7 @@ internal object NightIntroTimeline {
             edgarVisible = t >= PAN_END_MS,
             edgarWorldX = edgarX,
             edgarWalking = t >= PAN_END_MS && t < WALK_END_MS,
-            footstepVolume = volume,
+            spaceT = 1f - easeInOutSine(panP),
             done = t >= DONE_MS
         )
     }

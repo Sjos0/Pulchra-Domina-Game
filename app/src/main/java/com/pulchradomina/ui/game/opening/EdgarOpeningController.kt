@@ -46,6 +46,9 @@ class EdgarOpeningController(
         private set
     var visibleChars by mutableIntStateOf(0)
         private set
+    /** Clip de voz da frase tocando agora (base do ducking da mixagem). */
+    var voiceSpeaking by mutableStateOf(false)
+        private set
     /** Texto e voz da frase terminaram: a seta aparece e o toque avança. */
     var canAdvance by mutableStateOf(false)
         private set
@@ -91,6 +94,7 @@ class EdgarOpeningController(
         val clipMs = line.clipDurationMs
         val clockStart = System.nanoTime()
         val hasAudio = voice.start(EdgarOpeningAssets.voices[index])
+        voiceSpeaking = hasAudio
         while (true) {
             val elapsed = ((System.nanoTime() - clockStart) / 1_000_000L).toInt()
             val pos = if (hasAudio) voice.positionMs() else elapsed
@@ -100,6 +104,7 @@ class EdgarOpeningController(
             delay(TICK_MS)
         }
         visibleChars = line.text.length
+        voiceSpeaking = false
         voice.release()
         canAdvance = true
 
