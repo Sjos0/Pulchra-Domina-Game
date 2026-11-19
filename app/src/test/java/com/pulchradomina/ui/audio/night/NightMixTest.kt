@@ -56,8 +56,10 @@ class NightMixTest {
     }
 
     @Test
-    fun voiceDuck_isStrongerOnTheClubThanOnTheAmbience() {
-        assertTrue(NightMix.VOICE_DUCK_AMBIENCE < 1f)
-        assertTrue(NightMix.VOICE_DUCK_CLUB < NightMix.VOICE_DUCK_AMBIENCE)
+    fun voiceDuck_cutsTheAmbienceHarder_thanTheClub() {
+        // Pack v5: ambiente x0.4 e balada x0.5 durante a fala (o ambiente some mais)
+        assertEquals(0.4f, NightMix.VOICE_DUCK_AMBIENCE, 0.001f)
+        assertEquals(0.5f, NightMix.VOICE_DUCK_CLUB, 0.001f)
+        assertTrue(NightMix.VOICE_DUCK_AMBIENCE < NightMix.VOICE_DUCK_CLUB)
     }
 }

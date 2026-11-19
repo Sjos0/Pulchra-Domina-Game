@@ -66,7 +66,7 @@ internal class NightAmbiencePlayer(private val context: Context) {
     fun pause() {
         listOf(crickets, wind).forEach { mp ->
             try {
-                if (mp?.isPlaying == true) mp.pause()
+                mp?.let { if (it.isPlaying) it.pause() }
             } catch (_: IllegalStateException) {
             }
         }
@@ -75,7 +75,7 @@ internal class NightAmbiencePlayer(private val context: Context) {
     fun resume() {
         listOf(crickets, wind).forEach { mp ->
             try {
-                if (mp != null && !mp.isPlaying) mp.start()
+                mp?.let { if (!it.isPlaying) it.start() }
             } catch (_: IllegalStateException) {
             }
         }
