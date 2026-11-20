@@ -72,7 +72,7 @@ CLUB_ACCENT_TOP = 620         # acima dos prédios da direita, sem cobrir o Edga
 CLUB_ACCENT_MARGIN = 10
 # Itens no chão da calçada (base na linha dos pés, desenhados depois do chão e antes do Edgar).
 GROUND_PROPS_SPEC = [
-    dict(s="ITEM", x=2440, base=1252, h=48),   # perto do fim da linha, no mesmo plano dos pés
+    dict(s="ITEM", x=2440, base=1252, h=53),   # v3.1: +10% (48 -> 53), mesmo plano dos pés   # perto do fim da linha, no mesmo plano dos pés
 ]
 
 # Postes: X e base/altura NÃO mudam (pedido do usuário). Só o sprite é usado como está.
@@ -289,7 +289,7 @@ def rim_masks(alpha):
         band2 = solid & ~edge & second
         m = np.zeros(solid.shape, np.uint8)
         m[band1] = 255
-        m[band2 & dot] = 110
+        m[band2] = 175   # 2º px sólido: a borda lê como linha, não como poeira (v3.1)
         out.append(m)
     return out[0], out[1]
 
@@ -410,9 +410,23 @@ def write_lamp_light(out_assets):
     rgba[..., 3] = np.round(alpha * 255).astype(np.uint8)
     Image.fromarray(rgba, "RGBA").save(os.path.join(out_assets, "lamp_light.png"), optimize=True)
 
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
 def repo_png(out_assets, fname):
     with Image.open(os.path.join(out_assets, fname)) as im:
         return dict(file=fname, aspect=im.width / im.height, w=im.width, h=im.height)
+
+HINT_SVG_REL = "tools/night_street/sources/hand_hint.svg"
+ITEM_HINT_RADIUS = 10.0   # pontos percentuais do mundo; = ExplorationRules.ITEM_HINT_RADIUS
+
+def read_hand_path(repo):
+    """Path (d) do ícone de mão em tools/night_street/sources/hand_hint.svg (viewBox 0 0 24 24)."""
+    import re
+    svg = open(os.path.join(repo, HINT_SVG_REL), encoding="utf-8").read()
+    m = re.search(r' d="([^"]+)"', svg)
+    if not m:
+        sys.exit("hand_hint.svg sem atributo d")
+    return m.group(1)
 
 def build(args):
     out_assets = os.path.join(args.repo, "app/src/main/assets/night_street")
@@ -509,6 +523,7 @@ def build(args):
         f'h = {fk(g["h"])}, layer = Layer.FRONT, parallax = 1.0f, flip = false, drift = 0.0f),'
         for g in ground_props
     ]
+    hand_path = read_hand_path(args.repo)
     rim_lines = [
         f'        NightSprite.{k} to (NightSprite.RIM_{k}_R to NightSprite.RIM_{k}_L),' for k in RIM_SPRITES
     ]
@@ -611,6 +626,9 @@ internal object NightStreetLayout {{
     const val CLUB_ACCENT_H = {CLUB_ACCENT_H}f
     const val CLUB_ACCENT_TOP = {CLUB_ACCENT_TOP}f
     const val CLUB_ACCENT_MARGIN = {CLUB_ACCENT_MARGIN}f
+
+    /** Ícone de mão do aviso de item (SVG, viewBox 0 0 24 24), de tools/night_street/sources/hand_hint.svg. */
+    const val ITEM_HINT_HAND_PATH = "{hand_path}"
 }}
 """
     with open(out_kt, "w", encoding="utf-8") as f:
@@ -801,15 +819,57 @@ def render_view(built, cam_units, scale, vp_w, vp_h, edgar_x_units, facing_right
         y0 = (g["apex_y"] - g["bulb_h"] * 0.4) * scale
         y1 = (g["apex_y"] + g["bulb_h"] * 0.6) * scale
         d.rectangle([x0, y0, x1, y1], fill=(*bulb, 235))
+    # aviso da mão sobre o item: só quando o Edgar está a até ITEM_HINT_RADIUS do item
+    item = next((g for g in built["ground_props"] if g["s"] == "ITEM"), None)
+    if item is not None:
+        hint = item_hint_alpha(edgar_x_units / WORLD_W * 100, item["gx"] / WORLD_W * 100)
+        if hint > 0:
+            draw_item_hint(out, item, cam_units, scale, hint)
     return out.convert("RGB")
 
-RIM_GAIN_PREVIEW = 0.85       # espelha ClubLights.RIM_GAIN
+RIM_GAIN_PREVIEW = 1.23       # espelha ClubLights.RIM_GAIN (v3.1)
 SPILL_GAIN_PREVIEW = 0.6      # espelha ClubLights.SPILL_GAIN
 ACCENT_GAIN_PREVIEW = 0.9     # espelha ClubLights.ACCENT_GAIN
 CLUB_PREVIEW_COLOR = 0xFF2EC8  # magenta (primeira cor da sequência)
 CLUB_PREVIEW_LEVEL = 0.28 + 0.62 * 0.6   # nível com pulso médio
 
-def preview(args, built, club=True):
+_HAND_POLY = None
+
+def hand_polygon():
+    """Contorno da mão (coordenadas 0..24) amostrado do mesmo path do Kotlin. Só a prévia usa."""
+    global _HAND_POLY
+    if _HAND_POLY is None:
+        from svgpathtools import parse_path
+        import re
+        svg = open(os.path.join(REPO_ROOT, HINT_SVG_REL), encoding="utf-8").read()
+        path = parse_path(re.search(r' d="([^"]+)"', svg).group(1))
+        pts = []
+        for seg in path:
+            for i in range(13):
+                z = seg.point(i / 12)
+                pts.append((z.real, z.imag))
+        _HAND_POLY = pts
+    return _HAND_POLY
+
+def item_hint_alpha(player_pct, item_pct):
+    """Regra do jogo: aviso aparece a até ITEM_HINT_RADIUS pontos percentuais do item."""
+    return 1.0 if abs(item_pct - player_pct) <= ITEM_HINT_RADIUS else 0.0
+
+def draw_item_hint(out, g, cam_units, scale, alpha):
+    """Círculo branco vazado + mão branca sobre o item (espelha ItemHint.kt)."""
+    cx = (g["gx"] - cam_units) * scale
+    cy = (g["base"] - g["h"] / 2) * scale
+    r = g["h"] * 0.9 * scale * (0.7 + 0.3 * alpha)
+    layer = Image.new("RGBA", out.size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    a = int(255 * alpha)
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=(255, 255, 255, a), width=max(2, round(r * 0.08)))
+    side = r * 1.1
+    pts = [(cx - side / 2 + x * side / 24, cy - side / 2 + y * side / 24) for x, y in hand_polygon()]
+    d.polygon(pts, fill=(255, 255, 255, a))
+    out.alpha_composite(layer)
+
+def preview(args, built, club=True, club_level=None):
     os.makedirs(args.preview_dir, exist_ok=True)
     cache = {}
     # 1) tela do celular (720x1270, como o print) em vários pontos do caminho
@@ -824,10 +884,13 @@ def preview(args, built, club=True):
         ("05_meio_do_mundo_50pct", 50.0, True, 6),
         ("06_entre_postes_70pct", 70.0, True, 30),
         ("07_fim_do_caminho_96pct", 96.0, True, 18),
+        ("08_perto_da_flor_aviso", 86.4, True, 0),
+        ("09_longe_da_flor_sem_aviso", 60.0, True, 0),
     ]
     tiles = []
+    level = CLUB_PREVIEW_LEVEL if club_level is None else club_level
     club_state = (((CLUB_PREVIEW_COLOR >> 16) & 0xFF, (CLUB_PREVIEW_COLOR >> 8) & 0xFF, CLUB_PREVIEW_COLOR & 0xFF),
-                  CLUB_PREVIEW_LEVEL) if club else None
+                  level) if club else None
     for name, pct, right, frame in shots:
         ex = pct / 100 * WORLD_W
         cam = min(max(0.0, ex - visible / 2), WORLD_W - visible)
