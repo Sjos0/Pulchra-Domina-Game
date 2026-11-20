@@ -37,10 +37,16 @@ class NightStreetLayoutTest {
     }
 
     @Test
-    fun lampXPositions_areUnchanged() {
-        // Pedido do usuário: não mudar a posição X dos postes (valores da v1).
+    fun lampXPositions_areUnchanged_onlyTheLargeOnesRemain() {
+        // Pedido do usuário: não mudar a posição X dos postes grandes (v1). Os pequenos saíram.
         val xs = NightStreetLayout.lamps.map { it.x }
-        assertEquals(listOf(266f, 623f, 1207f, 1564f, 2148f, 2505f), xs)
+        assertEquals(listOf(266f, 1207f, 2148f), xs)
+    }
+
+    @Test
+    fun noSmallLamp_remains() {
+        assertTrue(NightStreetLayout.lamps.none { it.h == 360f })
+        assertEquals(3, NightStreetLayout.lamps.size)
     }
 
     @Test
@@ -113,12 +119,38 @@ class NightStreetLayoutTest {
     }
 
     @Test
-    fun lampHeights_bothGrew_andTheTallerOneStaysTaller() {
-        val tall = NightStreetLayout.lamps.filter { it.h == 455f }
-        val short = NightStreetLayout.lamps.filter { it.h == 360f }
-        assertEquals(3, tall.size)
-        assertEquals(3, short.size)
-        assertTrue(tall.first().h > short.first().h)
+    fun lampHeights_allAreTheLargeSize_andSpacingIsRegular() {
+        assertTrue(NightStreetLayout.lamps.all { it.h == 455f })
+        val xs = NightStreetLayout.lamps.map { it.x }
+        val gaps = xs.zipWithNext { a, b -> b - a }
+        assertTrue(gaps.all { kotlin.math.abs(it - gaps.first()) < 0.5f })
+    }
+
+    @Test
+    fun rimMasks_haveTheSameSizeAsTheirSprite() {
+        NightStreetLayout.rimMasks.forEach { (sprite, pair) ->
+            val base = javax.imageio.ImageIO.read(File(assetsDir, sprite.file))
+            listOf(pair.first, pair.second).forEach { mask ->
+                val img = javax.imageio.ImageIO.read(File(assetsDir, mask.file))
+                assertEquals("máscara ${mask.file}", base.width.toLong(), img.width.toLong())
+                assertEquals("máscara ${mask.file}", base.height.toLong(), img.height.toLong())
+            }
+        }
+    }
+
+    @Test
+    fun clubSpill_isNearTheRightEnd_andClubAccents_hugTheRight() {
+        assertTrue(NightStreetLayout.CLUB_SPILL_W < worldWidth / 2f)
+        assertTrue(NightStreetLayout.CLUB_ACCENT_TOP + NightStreetLayout.CLUB_ACCENT_H < NightStreetLayout.GROUND_TOP)
+        assertTrue(NightStreetLayout.CLUB_ACCENT_W < 100f)
+    }
+
+    @Test
+    fun flowerIndicator_sameSizeAsTheFlower() {
+        val flower = javax.imageio.ImageIO.read(File(assetsDir, NightSprite.ITEM.file))
+        val ring = javax.imageio.ImageIO.read(File(assetsDir, NightSprite.ITEM_INDICATOR.file))
+        assertEquals(flower.width, ring.width)
+        assertEquals(flower.height, ring.height)
     }
 
     @Test

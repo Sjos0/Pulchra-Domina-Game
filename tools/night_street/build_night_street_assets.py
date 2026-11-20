@@ -24,7 +24,7 @@ import os
 import sys
 
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageChops, ImageDraw
 
 # ------------------------------------------------------------ geometria
 REF_W, REF_H = 941, 1672
@@ -49,9 +49,27 @@ START_PERCENT = 14.0         # Edgar começa entre os dois postes, como na refer
 
 # Sprites já prontos no repo (sem fundo, pixels preservados): não passam pelo pipeline do zip.
 PREBUILT_SPRITES = {
-    "ITEM": "item_maveth_flower.png",   # tools/night_intro/build_intro_assets.py
-    "LAMP_LIGHT": "lamp_light.png",     # gerada por write_lamp_light() (cone de luz dos postes)
+    "ITEM": "item_maveth_flower.png",               # tools/night_intro/build_intro_assets.py
+    "ITEM_INDICATOR": "item_maveth_indicator.png",  # contorno de destaque da flor (pulsa); idem
+    "LAMP_LIGHT": "lamp_light.png",                 # gerada por write_lamp_light() (cone de luz dos postes)
+    "CLUB_SPILL": "club_spill.png",                 # derive_assets(): luz da balada no chão, perto da borda direita
+    "CLUB_ACCENTS": "club_accents.png",             # derive_assets(): pontos de neon pixelados na borda direita
 }
+# Luz da balada por borda (Rim): máscara só das bordas voltadas para a direita (_R) e para a esquerda (_L,
+# usada quando o prop está espelhado). Gerada a partir do alfa dos PNGs do cenário (derive_rim_masks()).
+RIM_SPRITES = ["TREE_1", "TREE_2", "TREE_3", "TREE_4", "TREE_5", "TREE_6", "BENCH_1", "BENCH_2"]
+for _k in RIM_SPRITES:
+    PREBUILT_SPRITES[f"RIM_{_k}_R"] = f"rim_{_k.lower()}_r.png"
+    PREBUILT_SPRITES[f"RIM_{_k}_L"] = f"rim_{_k.lower()}_l.png"
+
+# Luz da balada (valores em unidades de referência)
+CLUB_SPILL_W = 560.0          # largura da faixa de luz que entra pela borda direita
+CLUB_SPILL_H = 420.0          # altura (a partir da calçada)
+CLUB_SPILL_PX = 4             # pixel art: 1 px da textura = 4 unidades
+CLUB_ACCENT_W = 48            # faixa de pontos de neon, colada na borda direita
+CLUB_ACCENT_H = 400
+CLUB_ACCENT_TOP = 620         # acima dos prédios da direita, sem cobrir o Edgar
+CLUB_ACCENT_MARGIN = 10
 # Itens no chão da calçada (base na linha dos pés, desenhados depois do chão e antes do Edgar).
 GROUND_PROPS_SPEC = [
     dict(s="ITEM", x=2440, base=1252, h=48),   # perto do fim da linha, no mesmo plano dos pés
@@ -172,11 +190,14 @@ def props_spec():
 LAMP_SPRITE_NATIVE_H = 419
 # X e base dos postes: IGUAIS à v1 (pedido: não mudar a posição). Alturas: maior 455, menor 360
 # (pedido de proporção: os dois crescem, o maior continua visivelmente mais alto).
+# v3: só os postes grandes (um por tela). Os pequenos (x=623, 1564, 2505) foram removidos por decisão de design.
 LAMPS_SPEC = [
-    dict(b=0, x=266, h=455), dict(b=0, x=623, h=360),
-    dict(b=1, x=266, h=455), dict(b=1, x=623, h=360),
-    dict(b=2, x=266, h=455), dict(b=2, x=623, h=360),
+    dict(b=0, x=266, h=455),
+    dict(b=1, x=266, h=455),
+    dict(b=2, x=266, h=455),
 ]
+# Razão cabeça/altura do poste (medida na fonte original). Constante: o Kotlin não depende de medir o zip.
+LAMP_HEAD_RATIO = 0.0833407
 
 # ------------------------------------------------------------ helpers
 def world_x(block, x_local):
@@ -205,9 +226,9 @@ def head_bottom_ratio(lamp_crop):
         y += 1
     return y / lamp_crop.height
 
-def lamp_geometry(lamp, head_ratio):
+def lamp_geometry(lamp):
     top = LAMP_BASE - lamp["h"]
-    apex_y = top + head_ratio * lamp["h"]
+    apex_y = top + LAMP_HEAD_RATIO * lamp["h"]
     return dict(
         x=world_x(lamp["b"], lamp["x"]),
         apex_y=apex_y,
@@ -228,6 +249,133 @@ def sprite_top(p):
 def darken_argb(f):
     c = round(255 * f)
     return 0xFF000000 | (c << 16) | (c << 8) | c
+
+# ------------------------------------------------------------ derivados (a partir dos PNGs do repo)
+ROAD_BASE_REL = "tools/night_street/sources/road_base.png"   # asfalto sem textura (entrada de derive_road)
+BAYER2 = np.array([[0, 2], [3, 1]], np.float32) / 4.0
+
+def _bayer_tile(h, w, base=BAYER2):
+    return np.tile(base, (h // base.shape[0] + 1, w // base.shape[1] + 1))[:h, :w]
+
+def _sides(solid):
+    """Para cada pixel sólido: está na borda direita? (vizinho a +d é vazio ou fora da imagem)."""
+    H, W = solid.shape
+    def right_empty(d):
+        out = np.ones_like(solid)
+        out[:, :W - d] = ~solid[:, d:]
+        return out
+    def left_empty(d):
+        out = np.ones_like(solid)
+        out[:, d:] = ~solid[:, :W - d]
+        return out
+    return right_empty, left_empty
+
+def rim_masks(alpha):
+    """
+    Máscaras de borda voltada para a balada (direita), em pixel art:
+      - 1 px de borda: opaco;
+      - 2º px: pontilhado (Bayer 2x2), para não virar contorno contínuo nem 'adesivo'.
+    Retorna (máscara das bordas direitas, máscara das bordas esquerdas), alfa 0..255.
+    Usa só o alfa do sprite (pixels da arte não mudam).
+    """
+    solid = alpha >= 128
+    right_empty, left_empty = _sides(solid)
+    H, W = solid.shape
+    dot = _bayer_tile(H, W) >= 0.5
+    out = []
+    for edge, first in ((right_empty(1), right_empty), (left_empty(1), left_empty)):
+        second = first(2)
+        band1 = solid & edge
+        band2 = solid & ~edge & second
+        m = np.zeros(solid.shape, np.uint8)
+        m[band1] = 255
+        m[band2 & dot] = 110
+        out.append(m)
+    return out[0], out[1]
+
+def derive_road(out_assets, base_path):
+    """
+    Asfalto de textura média: manchas claras/escuras de 2x2 px e poucos pontos escuros, espalhados
+    de forma determinística (seed fixa) e com wrap horizontal (a faixa se repete sem costura).
+    O alfa não muda. O asfalto continua mais escuro que a calçada.
+    """
+    base = np.array(Image.open(base_path).convert("RGBA")).astype(np.float32)
+    H, W = base.shape[:2]
+    solid = (base[..., 3] > 8).astype(np.float32)
+    rng = np.random.default_rng(20261119)
+    delta = np.zeros((H, W), np.float32)
+    n = int(W * H * 0.035)
+    ys = rng.integers(0, H, n)
+    xs = rng.integers(0, W, n)
+    d = rng.choice(np.array([-14, -9, 6, 10], np.float32), n)
+    for dy in (0, 1):
+        for dx in (0, 1):
+            np.add.at(delta, ((ys + dy) % H, (xs + dx) % W), d)
+    m = int(W * H * 0.006)
+    ys2 = rng.integers(0, H, m)
+    xs2 = rng.integers(0, W, m)
+    np.add.at(delta, (ys2, xs2), -18)
+    rgb = base[..., :3] + (delta * solid)[..., None]
+    rgb = np.clip(rgb, 0, 255)
+    out = np.dstack([rgb, base[..., 3]]).astype(np.uint8)
+    Image.fromarray(out, "RGBA").save(os.path.join(out_assets, "road.png"), optimize=True)
+    return float(rgb.mean()), float(rgb.std())
+
+def derive_rim_masks(out_assets):
+    for key in RIM_SPRITES:
+        name = key.lower()
+        with Image.open(os.path.join(out_assets, f"{name}.png")) as im:
+            alpha = np.array(im.convert("RGBA").getchannel("A"))
+        right, left = rim_masks(alpha)
+        for suffix, arr in (("r", right), ("l", left)):
+            rgba = np.zeros(arr.shape + (4,), np.uint8)
+            rgba[..., :3] = 255
+            rgba[..., 3] = arr
+            Image.fromarray(rgba, "RGBA").save(os.path.join(out_assets, f"rim_{name}_{suffix}.png"), optimize=True)
+
+def derive_club_spill(out_assets):
+    """
+    Luz da balada no chão: textura de pixel art (1 px = CLUB_SPILL_PX unidades). Forte junto da borda
+    direita, cai até o centro; mais forte perto da calçada e some para baixo. Dithering Bayer, sem blur.
+    """
+    w = round(CLUB_SPILL_W / CLUB_SPILL_PX)
+    h = round(CLUB_SPILL_H / CLUB_SPILL_PX)
+    u = np.arange(w, dtype=np.float32) / (w - 1)
+    v = np.arange(h, dtype=np.float32) / (h - 1)
+    a = (u[None, :] ** 2.2) * ((1 - 0.7 * v[:, None]) ** 1.3) * 0.9
+    levels = 10
+    a = np.floor(a * levels + _bayer_tile(h, w, BAYER4)) / levels
+    rgba = np.zeros((h, w, 4), np.uint8)
+    rgba[..., :3] = 255
+    rgba[..., 3] = np.round(a * 255).astype(np.uint8)
+    Image.fromarray(rgba, "RGBA").save(os.path.join(out_assets, "club_spill.png"), optimize=True)
+
+def derive_club_accents(out_assets):
+    """Pontos de neon pixelados (clusters dithered), colados na borda direita. Mesma cor do momento."""
+    w, h = CLUB_ACCENT_W, CLUB_ACCENT_H
+    rng = np.random.default_rng(7351)
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    alpha = np.zeros((h, w), np.float32)
+    bay = _bayer_tile(h, w, BAYER4)
+    for _ in range(6):
+        cx = rng.uniform(10, w - 8)
+        cy = rng.uniform(20, h - 20)
+        r = rng.uniform(6.0, 10.0)
+        dist = np.sqrt((xx - cx) ** 2 + ((yy - cy) * 1.3) ** 2) / r
+        p = np.clip(1.0 - dist, 0, 1)
+        alpha = np.maximum(alpha, np.where(p > bay, 1.0, 0.0) * (p > 0))
+    rgba = np.zeros((h, w, 4), np.uint8)
+    rgba[..., :3] = 255
+    rgba[..., 3] = (alpha * 255).astype(np.uint8)
+    Image.fromarray(rgba, "RGBA").save(os.path.join(out_assets, "club_accents.png"), optimize=True)
+
+def derive_assets(out_assets, road_base):
+    """Tudo que o pipeline cria sem o zip original. Determinístico: rodar duas vezes dá o mesmo resultado."""
+    road_mean, road_std = derive_road(out_assets, road_base)
+    derive_rim_masks(out_assets)
+    derive_club_spill(out_assets)
+    derive_club_accents(out_assets)
+    print(f"asfalto: luminância média {road_mean:.1f}, desvio {road_std:.1f}")
 
 # ------------------------------------------------------------ build
 BAYER4 = np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]], np.float32) / 16.0
@@ -262,11 +410,16 @@ def write_lamp_light(out_assets):
     rgba[..., 3] = np.round(alpha * 255).astype(np.uint8)
     Image.fromarray(rgba, "RGBA").save(os.path.join(out_assets, "lamp_light.png"), optimize=True)
 
+def repo_png(out_assets, fname):
+    with Image.open(os.path.join(out_assets, fname)) as im:
+        return dict(file=fname, aspect=im.width / im.height, w=im.width, h=im.height)
+
 def build(args):
     out_assets = os.path.join(args.repo, "app/src/main/assets/night_street")
     out_kt = os.path.join(args.repo, "app/src/main/java/com/pulchradomina/ui/game/night/NightStreetLayout.kt")
     os.makedirs(out_assets, exist_ok=True)
     os.makedirs(os.path.dirname(out_kt), exist_ok=True)
+    road_base = os.path.join(args.repo, ROAD_BASE_REL)
 
     props = [dict(p, gx=world_x(p["b"], p["x"])) for p in props_spec()]
 
@@ -276,53 +429,71 @@ def build(args):
     master_h["LAMP"] = LAMP_SPRITE_NATIVE_H
 
     meta = {}
-    for key, rel in SPRITE_SOURCES.items():
-        im = load_cropped(os.path.join(args.source, rel))
-        th = max(1, round(master_h[key] * ASSET_SCALE))
-        tw = max(1, round(th * im.width / im.height))
-        fname = f"{key.lower()}.png"
-        resize_rgba(im, tw, th).save(os.path.join(out_assets, fname), optimize=True)
-        meta[key] = dict(file=fname, aspect=im.width / im.height)
-
-    head_ratio = head_bottom_ratio(load_cropped(os.path.join(args.source, SPRITE_SOURCES["LAMP"])))
-
     tile_w = {}
-    for key, (rel, tw_u, th_u) in TILE_SOURCES.items():
-        im = load_cropped(os.path.join(args.source, rel))
-        if tw_u is None:
-            tw_u = round(th_u * im.width / im.height)   # calçada: mantém a proporção do asset
-        tile_w[key] = tw_u
-        fname = f"{key.lower()}.png"
-        resize_rgba(im, round(tw_u * ASSET_SCALE), round(th_u * ASSET_SCALE)).save(
-            os.path.join(out_assets, fname), optimize=True)
-        meta[key] = dict(file=fname, aspect=im.width / im.height)
+    if args.from_repo:
+        # Modo reprodutível: parte dos PNGs já gerados em app/src/main/assets (não precisa do zip original).
+        for key in SPRITE_SOURCES:
+            meta[key] = repo_png(out_assets, f"{key.lower()}.png")
+        for key in TILE_SOURCES:
+            meta[key] = repo_png(out_assets, f"{key.lower()}.png")
+            tile_w[key] = meta[key]["w"]
+        frame_names = sorted(glob.glob(os.path.join(out_assets, "edgar", "idle_*.png")))
+        if len(frame_names) != EDGAR_FRAMES:
+            sys.exit(f"Esperava {EDGAR_FRAMES} frames do Edgar no repo, achei {len(frame_names)}")
+        with Image.open(frame_names[0]) as im:
+            edgar_aspect = im.width / im.height
+    else:
+        for key, rel in SPRITE_SOURCES.items():
+            im = load_cropped(os.path.join(args.source, rel))
+            th = max(1, round(master_h[key] * ASSET_SCALE))
+            tw = max(1, round(th * im.width / im.height))
+            fname = f"{key.lower()}.png"
+            resize_rgba(im, tw, th).save(os.path.join(out_assets, fname), optimize=True)
+            meta[key] = dict(file=fname, aspect=im.width / im.height)
+
+        measured = head_bottom_ratio(load_cropped(os.path.join(args.source, SPRITE_SOURCES["LAMP"])))
+        if abs(measured - LAMP_HEAD_RATIO) > 0.01:
+            print(f"aviso: cabeça do poste medida {measured:.4f}, constante {LAMP_HEAD_RATIO}")
+
+        for key, (rel, tw_u, th_u) in TILE_SOURCES.items():
+            im = load_cropped(os.path.join(args.source, rel))
+            if tw_u is None:
+                tw_u = round(th_u * im.width / im.height)   # calçada: mantém a proporção do asset
+            tile_w[key] = tw_u
+            fname = f"{key.lower()}.png"
+            tile = resize_rgba(im, round(tw_u * ASSET_SCALE), round(th_u * ASSET_SCALE))
+            tile.save(os.path.join(out_assets, fname), optimize=True)
+            meta[key] = dict(file=fname, aspect=im.width / im.height)
+            if key == "ROAD":
+                os.makedirs(os.path.dirname(road_base), exist_ok=True)
+                tile.save(road_base, optimize=True)   # base sem textura (entrada de derive_assets)
+
+        frame_paths = sorted(glob.glob(os.path.join(args.edgar_dir, "frames", "frame_*.png")))
+        if len(frame_paths) != EDGAR_FRAMES:
+            sys.exit(f"Esperava {EDGAR_FRAMES} frames do Edgar, achei {len(frame_paths)}")
+        boxes = []
+        for fp in frame_paths:
+            a = np.array(Image.open(fp).getchannel("A"))
+            ys, xs = np.where(a > 8)
+            boxes.append((int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1))
+        ub = (min(b[0] for b in boxes), min(b[1] for b in boxes),
+              max(b[2] for b in boxes), max(b[3] for b in boxes))
+        edgar_dir = os.path.join(out_assets, "edgar")
+        os.makedirs(edgar_dir, exist_ok=True)
+        for f in glob.glob(os.path.join(edgar_dir, "*.png")):
+            os.remove(f)
+        edgar_aspect = (ub[2] - ub[0]) / (ub[3] - ub[1])
+        ew = round(EDGAR_TEX_H * edgar_aspect)
+        for i, fp in enumerate(frame_paths):
+            crop = Image.open(fp).convert("RGBA").crop(ub)
+            resize_rgba(crop, ew, EDGAR_TEX_H).save(os.path.join(edgar_dir, f"idle_{i:02d}.png"), optimize=True)
 
     write_lamp_light(out_assets)
+    derive_assets(out_assets, road_base)
     for key, rel in PREBUILT_SPRITES.items():
-        with Image.open(os.path.join(out_assets, rel)) as im:
-            meta[key] = dict(file=rel, aspect=im.width / im.height)
+        meta[key] = repo_png(out_assets, rel)
 
-    frame_paths = sorted(glob.glob(os.path.join(args.edgar_dir, "frames", "frame_*.png")))
-    if len(frame_paths) != EDGAR_FRAMES:
-        sys.exit(f"Esperava {EDGAR_FRAMES} frames do Edgar, achei {len(frame_paths)}")
-    boxes = []
-    for fp in frame_paths:
-        a = np.array(Image.open(fp).getchannel("A"))
-        ys, xs = np.where(a > 8)
-        boxes.append((int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1))
-    ub = (min(b[0] for b in boxes), min(b[1] for b in boxes),
-          max(b[2] for b in boxes), max(b[3] for b in boxes))
-    edgar_dir = os.path.join(out_assets, "edgar")
-    os.makedirs(edgar_dir, exist_ok=True)
-    for f in glob.glob(os.path.join(edgar_dir, "*.png")):
-        os.remove(f)
-    edgar_aspect = (ub[2] - ub[0]) / (ub[3] - ub[1])
-    ew = round(EDGAR_TEX_H * edgar_aspect)
-    for i, fp in enumerate(frame_paths):
-        crop = Image.open(fp).convert("RGBA").crop(ub)
-        resize_rgba(crop, ew, EDGAR_TEX_H).save(os.path.join(edgar_dir, f"idle_{i:02d}.png"), optimize=True)
-
-    lamps = [lamp_geometry(l, head_ratio) for l in LAMPS_SPEC]
+    lamps = [lamp_geometry(l) for l in LAMPS_SPEC]
     ground_props = [dict(s=g["s"], gx=g["x"], base=g["base"], h=g["h"]) for g in GROUND_PROPS_SPEC]
 
     # ---------------- Kotlin gerado
@@ -337,6 +508,9 @@ def build(args):
         f'        Prop(NightSprite.{g["s"]}, x = {fk(g["gx"])}, top = {fk(g["base"] - g["h"])}, '
         f'h = {fk(g["h"])}, layer = Layer.FRONT, parallax = 1.0f, flip = false, drift = 0.0f),'
         for g in ground_props
+    ]
+    rim_lines = [
+        f'        NightSprite.{k} to (NightSprite.RIM_{k}_R to NightSprite.RIM_{k}_L),' for k in RIM_SPRITES
     ]
     lamp_lines = [
         f'        Lamp(x = {fk(g["x"])}, baseY = {fk(LAMP_BASE)}, h = {fk(l["h"])}, '
@@ -424,12 +598,25 @@ internal object NightStreetLayout {{
     val lamps: List<Lamp> = listOf(
 {chr(10).join(lamp_lines)}
     )
+
+    /** Máscara de borda (luz da balada) por sprite: (bordas direitas, bordas esquerdas espelhadas). */
+    val rimMasks: Map<NightSprite, Pair<NightSprite, NightSprite>> = mapOf(
+{chr(10).join(rim_lines)}
+    )
+
+    /** Luz da balada no chão: tamanho em unidades e altura do topo dos pontos de neon. */
+    const val CLUB_SPILL_W = {fk(CLUB_SPILL_W)}
+    const val CLUB_SPILL_H = {fk(CLUB_SPILL_H)}
+    const val CLUB_ACCENT_W = {CLUB_ACCENT_W}f
+    const val CLUB_ACCENT_H = {CLUB_ACCENT_H}f
+    const val CLUB_ACCENT_TOP = {CLUB_ACCENT_TOP}f
+    const val CLUB_ACCENT_MARGIN = {CLUB_ACCENT_MARGIN}f
 }}
 """
     with open(out_kt, "w", encoding="utf-8") as f:
         f.write(kt)
-    print(f"assets: {len(meta)} sprites/tiles, {len(frame_paths)} frames Edgar ({ew}x{EDGAR_TEX_H})")
-    print(f"sidewalk tile: {tile_w['SIDEWALK']}x{SIDEWALK_H}  head ratio: {head_ratio:.4f}")
+    print(f"assets: {len(meta)} sprites/tiles, {EDGAR_FRAMES} frames Edgar, aspecto {edgar_aspect:.4f}")
+    print(f"sidewalk tile: {tile_w['SIDEWALK']}x{SIDEWALK_H}  cabeça do poste: {LAMP_HEAD_RATIO}")
     print("Kotlin:", out_kt)
     return dict(props=props, meta=meta, out_assets=out_assets, edgar_aspect=edgar_aspect,
                 lamps=lamps, tile_w=tile_w, ground_props=ground_props)
@@ -450,8 +637,17 @@ def sky_gradient(W, H):
         grad[y, :, 3] = 255
     return grad
 
-def render_view(built, cam_units, scale, vp_w, vp_h, edgar_x_units, facing_right, frame, cache):
-    """Compõe a tela como o Canvas faz: céu, camadas, calçada, rua, postes, Edgar, noite, luz."""
+def smoothstep01(x):
+    t = min(1.0, max(0.0, x))
+    return t * t * (3 - 2 * t)
+
+def render_view(built, cam_units, scale, vp_w, vp_h, edgar_x_units, facing_right, frame, cache,
+                club=None):
+    """
+    Compõe a tela como o Canvas faz: céu, camadas, calçada, rua, postes, Edgar, noite, luz.
+    club = (cor RGB 0..255, nível 0..0.9) da balada. None = sem luz da balada (antes da v3).
+    Prévia em CPU: a soma aditiva do Kotlin é aproximada com ImageChops.add nas mesmas posições.
+    """
     meta, base = built["meta"], built["out_assets"]
     canvas = Image.fromarray(sky_gradient(vp_w, vp_h), "RGBA")
 
@@ -490,11 +686,47 @@ def render_view(built, cam_units, scale, vp_w, vp_h, edgar_x_units, facing_right
                 paste(meta[p["s"]]["file"], p["gx"] - w_u / 2, sprite_top(p), w_u, p["h"], p["flip"],
                       darken, p["par"])
 
+    def add_light(file, left_u, top_u, w_u, h_u, flip, color, k):
+        """Soma aditiva de um sprite-máscara colorido (Rim, faixa, neon). Mesmo esquema do Kotlin."""
+        if k <= 0:
+            return
+        left_px = (left_u - cam_units) * scale
+        w_px, h_px = w_u * scale, h_u * scale
+        if left_px + w_px <= 0 or left_px >= vp_w:
+            return
+        im = sprite(file, w_px, h_px)
+        if flip:
+            im = im.transpose(Image.FLIP_LEFT_RIGHT)
+        a = np.array(im.getchannel("A")).astype(np.float32) / 255.0 * k
+        if isinstance(color, tuple):
+            col = np.array(color, np.float32)
+        else:
+            col = np.array([(color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF], np.float32)
+        layer_img = Image.fromarray(np.clip(a[..., None] * col, 0, 255).astype(np.uint8), "RGB")
+        x0, y0 = round(left_px), round(top_u * scale)
+        box = (max(0, x0), max(0, y0), min(vp_w, x0 + layer_img.width), min(vp_h, y0 + layer_img.height))
+        if box[2] <= box[0] or box[3] <= box[1]:
+            return
+        part = layer_img.crop((box[0] - x0, box[1] - y0, box[2] - x0, box[3] - y0))
+        region = canvas.crop(box).convert("RGB")
+        canvas.paste(ImageChops.add(region, part).convert("RGBA"), box)
+
     layer("SKY", None)
     layer("FAR", LAYER_DARKEN["FAR"])
     layer("TREE", LAYER_DARKEN["TREE"])
     layer("BUSH", LAYER_DARKEN["BUSH"])
     layer("FRONT", LAYER_DARKEN["FRONT"])
+
+    # Rim: bordas de árvores e bancos voltadas para a balada (depois da camada, antes do Edgar)
+    if club is not None:
+        rgb_c, level = club
+        for p in built["props"]:
+            if p["s"] not in RIM_SPRITES or p["layer"] == "SKY":
+                continue
+            key = f"RIM_{p['s']}_{'L' if p['flip'] else 'R'}"
+            w_u = p["h"] * meta[p["s"]]["aspect"]
+            k = smoothstep01((p["gx"] / WORLD_W - 0.35) / 0.6) * level * RIM_GAIN_PREVIEW
+            add_light(meta[key]["file"], p["gx"] - w_u / 2, sprite_top(p), w_u, p["h"], p["flip"], rgb_c, k)
 
     # calçada e rua (rua = faixa + preenchimento abaixo)
     sw_w = built["tile_w"]["SIDEWALK"]
@@ -526,6 +758,15 @@ def render_view(built, cam_units, scale, vp_w, vp_h, edgar_x_units, facing_right
     rgb = np.array(canvas.convert("RGB")).astype(np.float32)
     overlay = np.array([(NIGHT_OVERLAY_ARGB >> s) & 0xFF for s in (16, 8, 0)], np.float32)
     rgb = rgb * (1 - NIGHT_OVERLAY_ALPHA) + overlay * NIGHT_OVERLAY_ALPHA
+    canvas = Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8), "RGB").convert("RGBA")
+
+    if club is not None:
+        rgb_c, level = club
+        # faixa da balada no chão (borda direita), depois a luz dos postes
+        add_light("club_spill.png", WORLD_W - CLUB_SPILL_W, GROUND_TOP, CLUB_SPILL_W, CLUB_SPILL_H,
+                  False, rgb_c, level * SPILL_GAIN_PREVIEW)
+        # o array rgb volta a ser a base dos passos seguintes (postes, cones)
+        rgb = np.array(canvas.convert("RGB")).astype(np.float32)
 
     # luz: cone de cada lâmpada, ápice na lâmpada e base no chão (aditivo, em degraus)
     H, W = rgb.shape[:2]
@@ -546,6 +787,12 @@ def render_view(built, cam_units, scale, vp_w, vp_h, edgar_x_units, facing_right
 
     # lâmpada acesa: retângulo quente logo abaixo da cabeça do poste
     out = Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8), "RGB").convert("RGBA")
+    if club is not None:
+        rgb_c, level = club
+        # pontos de neon colados na borda direita da tela
+        screen_right = vp_w / scale
+        add_light("club_accents.png", cam_units + screen_right - CLUB_ACCENT_W - CLUB_ACCENT_MARGIN,
+                  CLUB_ACCENT_TOP, CLUB_ACCENT_W, CLUB_ACCENT_H, False, rgb_c, level * ACCENT_GAIN_PREVIEW)
     d = ImageDraw.Draw(out, "RGBA")
     bulb = [(BULB_COLOR_ARGB >> s) & 0xFF for s in (16, 8, 0)]
     for g in built["lamps"]:
@@ -556,7 +803,13 @@ def render_view(built, cam_units, scale, vp_w, vp_h, edgar_x_units, facing_right
         d.rectangle([x0, y0, x1, y1], fill=(*bulb, 235))
     return out.convert("RGB")
 
-def preview(args, built):
+RIM_GAIN_PREVIEW = 0.85       # espelha ClubLights.RIM_GAIN
+SPILL_GAIN_PREVIEW = 0.6      # espelha ClubLights.SPILL_GAIN
+ACCENT_GAIN_PREVIEW = 0.9     # espelha ClubLights.ACCENT_GAIN
+CLUB_PREVIEW_COLOR = 0xFF2EC8  # magenta (primeira cor da sequência)
+CLUB_PREVIEW_LEVEL = 0.28 + 0.62 * 0.6   # nível com pulso médio
+
+def preview(args, built, club=True):
     os.makedirs(args.preview_dir, exist_ok=True)
     cache = {}
     # 1) tela do celular (720x1270, como o print) em vários pontos do caminho
@@ -573,10 +826,12 @@ def preview(args, built):
         ("07_fim_do_caminho_96pct", 96.0, True, 18),
     ]
     tiles = []
+    club_state = (((CLUB_PREVIEW_COLOR >> 16) & 0xFF, (CLUB_PREVIEW_COLOR >> 8) & 0xFF, CLUB_PREVIEW_COLOR & 0xFF),
+                  CLUB_PREVIEW_LEVEL) if club else None
     for name, pct, right, frame in shots:
         ex = pct / 100 * WORLD_W
         cam = min(max(0.0, ex - visible / 2), WORLD_W - visible)
-        im = render_view(built, cam, scale, vp_w, vp_h, ex, right, frame, cache)
+        im = render_view(built, cam, scale, vp_w, vp_h, ex, right, frame, cache, club=club_state)
         im.save(os.path.join(args.preview_dir, f"{name}.png"))
         tiles.append((name, im))
     sheet_w = len(tiles) * (vp_w // 2 + 8)
@@ -588,8 +843,10 @@ def preview(args, built):
 
     # 2) mundo inteiro (3 telas) e comparação com a referência
     S = 0.5
+    club_state = (((CLUB_PREVIEW_COLOR >> 16) & 0xFF, (CLUB_PREVIEW_COLOR >> 8) & 0xFF, CLUB_PREVIEW_COLOR & 0xFF),
+                  CLUB_PREVIEW_LEVEL) if club else None
     world = render_view(built, 0, S, int(WORLD_W * S), int(REF_H * S), START_PERCENT / 100 * WORLD_W,
-                        True, 0, cache)
+                        True, 0, cache, club=club_state)
     world.save(os.path.join(args.preview_dir, "10_mundo_3_telas.png"))
     if args.reference:
         ref = Image.open(args.reference).convert("RGB").resize((REF_W // 2, REF_H // 2))
@@ -614,12 +871,16 @@ def preview(args, built):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--source", required=True, help="pasta 'Assets/Pulchara Domina' extraída")
-    ap.add_argument("--edgar-dir", required=True, help="pasta extraída do zip do Edgar (contém frames/)")
+    ap.add_argument("--source", help="pasta 'Assets/Pulchara Domina' extraída (modo completo)")
+    ap.add_argument("--edgar-dir", help="pasta extraída do zip do Edgar (contém frames/) (modo completo)")
     ap.add_argument("--reference", default=None, help="PNG da referência 941x1672 (para a prévia)")
     ap.add_argument("--preview-dir", default=None, help="pasta para as prévias")
     ap.add_argument("--repo", default=os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+    ap.add_argument("--from-repo", action="store_true",
+                    help="reconstrói sem o zip: usa os PNGs já em app/src/main/assets/night_street")
     args = ap.parse_args()
+    if not args.from_repo and not (args.source and args.edgar_dir):
+        sys.exit("Informe --source e --edgar-dir, ou use --from-repo")
     built = build(args)
     if args.preview_dir:
         preview(args, built)

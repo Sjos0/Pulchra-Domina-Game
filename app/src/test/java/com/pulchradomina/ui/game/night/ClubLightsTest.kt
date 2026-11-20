@@ -7,43 +7,60 @@ import org.junit.Test
 class ClubLightsTest {
 
     @Test
-    fun lights_sitAtTheRightEnd_ofTheWorld() {
-        assertTrue(ClubLights.LIGHTS.size >= 5)
-        for (light in ClubLights.LIGHTS) {
-            assertTrue(light.x >= 2600f && light.x <= NightStreetLayout.WORLD_WIDTH)
+    fun palette_isTheApprovedOne_magentaAndVioletDominate() {
+        val counts = ClubLights.SEQUENCE.toList().groupingBy { it }.eachCount()
+        assertEquals(setOf(ClubLights.MAGENTA, ClubLights.VIOLET, ClubLights.CYAN, ClubLights.AMBER), counts.keys)
+        assertTrue(counts.getValue(ClubLights.MAGENTA) + counts.getValue(ClubLights.VIOLET) > ClubLights.SEQUENCE.size / 2)
+        assertEquals(1, counts.getValue(ClubLights.AMBER))
+    }
+
+    @Test
+    fun color_changesEveryTwoBeats() {
+        assertEquals(0, ClubLights.colorIndexFor(0))
+        assertEquals(0, ClubLights.colorIndexFor(1))
+        assertEquals(1, ClubLights.colorIndexFor(2))
+        assertEquals(1, ClubLights.colorIndexFor(3))
+        assertEquals(0, ClubLights.colorIndexFor(-5))
+    }
+
+    @Test
+    fun pulse_isZeroWithoutRecentBeat() {
+        assertEquals(0f, ClubLights.pulseAt(-1f), 0f)
+        assertEquals(0f, ClubLights.pulseAt(ClubLights.ACTIVE_WINDOW_S + 0.1f), 0f)
+    }
+
+    @Test
+    fun pulse_risesFast_thenDecays() {
+        val peak = ClubLights.pulseAt(0f)
+        val mid = ClubLights.pulseAt(ClubLights.ATTACK_S)
+        val late = ClubLights.pulseAt(ClubLights.ATTACK_S + ClubLights.DECAY_S * 2f)
+        assertEquals(0f, peak, 0.0001f)
+        assertEquals(1f, mid, 0.0001f)
+        assertTrue(late < mid && late > 0f)
+    }
+
+    @Test
+    fun level_staysBetweenBaseAndPeak() {
+        assertEquals(ClubLights.BASE_LEVEL, ClubLights.level(0f), 0.0001f)
+        assertEquals(ClubLights.BASE_LEVEL + ClubLights.PULSE_LEVEL, ClubLights.level(1f), 0.0001f)
+        assertEquals(ClubLights.level(1f), ClubLights.level(5f), 0.0001f)
+    }
+
+    @Test
+    fun proximity_isZeroInTheMiddle_andOneAtTheRightEdge() {
+        val w = NightStreetLayout.WORLD_WIDTH
+        assertEquals(0f, ClubLights.proximity(w * 0.2f, w), 0f)
+        assertEquals(1f, ClubLights.proximity(w, w), 0.0001f)
+        assertTrue(ClubLights.rimAlpha(w * 0.9f, w, 1f) > ClubLights.rimAlpha(w * 0.5f, w, 1f))
+    }
+
+    @Test
+    fun alphas_areBounded() {
+        val w = NightStreetLayout.WORLD_WIDTH
+        for (level in listOf(ClubLights.BASE_LEVEL, ClubLights.level(1f))) {
+            assertTrue(ClubLights.rimAlpha(w, w, level) in 0f..1f)
+            assertTrue(ClubLights.spillAlpha(level) in 0f..1f)
+            assertTrue(ClubLights.accentAlpha(level) in 0f..1f)
         }
-    }
-
-    @Test
-    fun lights_coverTheMarkedArea_fromTheTopOutlineDownToTheGround() {
-        val ys = ClubLights.LIGHTS.map { it.y }
-        assertTrue(ys.all { it >= ClubLights.TOP_Y && it <= ClubLights.BOTTOM_Y })
-        assertTrue((ys.maxOrNull() ?: 0f) - (ys.minOrNull() ?: 0f) > 500f)
-        assertTrue(ClubLights.LIGHTS.size >= 12)
-    }
-
-    @Test
-    fun eachColor_appearsAtLeastThreeTimes() {
-        val counts = ClubLights.LIGHTS.groupingBy { it.colorArgb }.eachCount()
-        assertTrue(counts.values.all { it >= 3 })
-    }
-
-    @Test
-    fun lights_useTheFiveColors_andTheyDiffer() {
-        assertEquals(5, ClubLights.LIGHTS.map { it.colorArgb }.distinct().size)
-    }
-
-    @Test
-    fun blink_staysBetweenZeroAndOne_andActuallyPulses() {
-        val light = ClubLights.LIGHTS.first()
-        var min = 1f
-        var max = 0f
-        for (i in 0..200) {
-            val k = ClubLights.intensity(light, i * 0.02f)
-            assertTrue(k in 0f..1f)
-            min = minOf(min, k)
-            max = maxOf(max, k)
-        }
-        assertTrue(max - min > 0.5f)
     }
 }

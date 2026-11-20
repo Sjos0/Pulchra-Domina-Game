@@ -22,9 +22,11 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import kotlin.math.PI
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.roundToInt
+import kotlin.math.sin
 
 private val SKY_STOPS: Array<Pair<Float, Color>> = arrayOf(
     0.00f to Color(0xFF0A061D),
@@ -36,12 +38,29 @@ private val SKY_STOPS: Array<Pair<Float, Color>> = arrayOf(
 )
 private val ROAD_FILL = Color(0xFF100C22)
 
+/** Uma ColorFilter por cor da balada (criadas uma vez; o desenho só escolhe uma). */
+private val CLUB_FILTERS: List<ColorFilter> = ClubLights.SEQUENCE.map { ColorFilter.tint(Color(it), BlendMode.SrcIn) }
+
+/** Estado da luz da balada num frame: nível (0..0.9) e batidas tocadas (define a cor). */
+private class ClubFrame(val level: Float, val beatCount: Int) {
+    val filter: ColorFilter get() = CLUB_FILTERS[ClubLights.colorIndexFor(beatCount)]
+}
+
+/** Tempo do frame e tempo desde a última batida viram o nível e a cor da luz. */
+private fun clubFrameNow(): ClubFrame {
+    val now = System.nanoTime()
+    val pulse = ClubLights.pulseAt(ClubBeats.secondsSinceBeat(now))
+    return ClubFrame(ClubLights.level(pulse), ClubBeats.beatCount())
+}
+
 /**
  * Cenário noturno da rua, na ordem de profundidade (fundo -> frente):
- *  céu/lua/nuvens -> prédios -> árvores -> arbustos -> bancos   (escurecidos por camada)
+ *  céu/lua/nuvens -> prédios -> árvores -> arbustos -> bancos   (escurecidos por camada; a borda
+ *      voltada para a balada recebe Rim, aditivo)
  *  -> calçada -> rua -> postes -> Edgar                           (plano do jogador)
- *  -> escuridão da noite -> cone de luz e lâmpada (aditivo)
- * A luz nasce da lâmpada e alarga até o chão; o Edgar só fica iluminado dentro do cone.
+ *  -> escuridão da noite -> faixa da balada no chão -> cone e lâmpada dos postes (aditivo)
+ *  -> pontos de neon da balada na borda direita (aditivo)
+ * A balada fica fora da tela, à direita: a luz chega pelas bordas e pelo chão, pulsando nas batidas.
  */
 @Composable
 fun NightStreetScene(
@@ -81,31 +100,38 @@ fun NightStreetScene(
         val view = cameraWorldX?.let { StreetCamera.viewAt(size.width, size.height, it) }
             ?: StreetCamera.view(size.width, size.height, playerWorldX)
         if (view.scale <= 0f) return@Canvas
+        val club = clubFrameNow()
 
         drawRect(brush = Brush.verticalGradient(*SKY_STOPS))
-        drawLayer(Layer.SKY, bitmaps, view, seconds, tint = null)
-        drawLayer(Layer.FAR, bitmaps, view, seconds, tint = NightStreetLayout.FAR_TINT_ARGB)
-        drawLayer(Layer.TREE, bitmaps, view, seconds, tint = NightStreetLayout.TREE_TINT_ARGB)
-        drawLayer(Layer.BUSH, bitmaps, view, seconds, tint = NightStreetLayout.BUSH_TINT_ARGB)
-        drawLayer(Layer.FRONT, bitmaps, view, seconds, tint = NightStreetLayout.FRONT_TINT_ARGB)
+        drawLayer(Layer.SKY, bitmaps, view, seconds, tint = null, club = club)
+        drawLayer(Layer.FAR, bitmaps, view, seconds, tint = NightStreetLayout.FAR_TINT_ARGB, club = club)
+        drawLayer(Layer.TREE, bitmaps, view, seconds, tint = NightStreetLayout.TREE_TINT_ARGB, club = club)
+        drawLayer(Layer.BUSH, bitmaps, view, seconds, tint = NightStreetLayout.BUSH_TINT_ARGB, club = club)
+        drawLayer(Layer.FRONT, bitmaps, view, seconds, tint = NightStreetLayout.FRONT_TINT_ARGB, club = club)
         drawGround(bitmaps, view)
-        drawGroundProps(bitmaps, view)
+        drawGroundProps(bitmaps, view, seconds)
         drawLampPosts(bitmaps, view)
         drawEdgar(bitmaps, view, playerWorldX, isFacingRight, seconds, edgarAlpha, walk)
         drawNightOverlay()
+        drawClubSpill(bitmaps, view, club)
         drawLampCones(bitmaps, view)
         drawLampBulbs(view)
-        drawClubLights(view, seconds)
+        drawClubAccents(bitmaps, view, club)
     }
 }
 
-/** Props de uma camada. Camadas de fundo recebem tint (escurecimento multiplicativo). */
+/**
+ * Props de uma camada. Camadas de fundo recebem tint (escurecimento multiplicativo).
+ * Árvores e bancos recebem Rim: só a borda voltada para a balada, colorida, aditiva.
+ * O Rim é desenhado junto do prop, então quem está na frente o cobre (profundidade preservada).
+ */
 private fun DrawScope.drawLayer(
     layer: Layer,
     bitmaps: NightStreetBitmaps,
     view: StreetCamera.View,
     seconds: Float,
-    tint: Long?
+    tint: Long?,
+    club: ClubFrame
 ) {
     val worldWidth = NightStreetLayout.WORLD_WIDTH
     val filter = tint?.let { ColorFilter.tint(Color(it), BlendMode.Modulate) }
@@ -129,6 +155,23 @@ private fun DrawScope.drawLayer(
                 flip = prop.flip,
                 colorFilter = filter
             )
+            val rim = NightStreetLayout.rimMasks[prop.sprite]
+            if (rim != null && k == 0) {
+                // espelhado, a borda da direita da tela é a borda esquerda do arquivo
+                val rimSprite = if (prop.flip) rim.second else rim.first
+                drawSpriteUnits(
+                    bmp = bitmaps.sprites.getValue(rimSprite),
+                    leftU = centerU - widthU / 2f,
+                    topU = prop.top,
+                    widthU = widthU,
+                    heightU = prop.h,
+                    unitPx = view.scale,
+                    flip = prop.flip,
+                    colorFilter = club.filter,
+                    alpha = ClubLights.rimAlpha(prop.x, worldWidth, club.level),
+                    blendMode = BlendMode.Plus
+                )
+            }
         }
     }
 }
@@ -170,43 +213,78 @@ private fun DrawScope.drawGround(bitmaps: NightStreetBitmaps, view: StreetCamera
     }
 }
 
-/** Itens no chão da calçada (ex.: a flor do Maveth, perto do fim da linha). */
-private fun DrawScope.drawGroundProps(bitmaps: NightStreetBitmaps, view: StreetCamera.View) {
+/**
+ * Itens no chão da calçada (ex.: a flor do Maveth). O item interativo tem um contorno dourado
+ * que pulsa devagar por cima; a arte não muda.
+ */
+private fun DrawScope.drawGroundProps(bitmaps: NightStreetBitmaps, view: StreetCamera.View, seconds: Float) {
     for (prop in NightStreetLayout.groundProps) {
         val bmp = bitmaps.sprites.getValue(prop.sprite)
         val widthU = prop.h * bmp.width / bmp.height
+        val leftU = prop.x - widthU / 2f - view.cameraX
         drawSpriteUnits(
             bmp = bmp,
-            leftU = prop.x - widthU / 2f - view.cameraX,
+            leftU = leftU,
             topU = prop.top,
             widthU = widthU,
             heightU = prop.h,
             unitPx = view.scale,
             flip = prop.flip
         )
+        if (prop.sprite == NightSprite.ITEM) {
+            // destaque lento e discreto: 0,10 a 0,40 de opacidade, ciclo de 2,4 s
+            val pulse = 0.5f + 0.5f * sin(2f * PI.toFloat() * seconds / 2.4f)
+            drawSpriteUnits(
+                bmp = bitmaps.sprites.getValue(NightSprite.ITEM_INDICATOR),
+                leftU = leftU,
+                topU = prop.top,
+                widthU = widthU,
+                heightU = prop.h,
+                unitPx = view.scale,
+                flip = prop.flip,
+                alpha = 0.10f + 0.30f * pulse,
+                blendMode = BlendMode.Plus
+            )
+        }
     }
 }
 
-/** Luzes da balada no fim do mapa, piscando (aditivo: somam sobre a noite). */
-private fun DrawScope.drawClubLights(view: StreetCamera.View, seconds: Float) {
-    val r = ClubLights.RADIUS * view.scale
-    for (light in ClubLights.LIGHTS) {
-        val k = ClubLights.intensity(light, seconds)
-        if (k < 0.02f) continue
-        val cx = (light.x - view.cameraX) * view.scale
-        val cy = light.y * view.scale
-        val c = Color(light.colorArgb)
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(c.copy(alpha = 0.9f * k), c.copy(alpha = 0f)),
-                center = Offset(cx, cy),
-                radius = r
-            ),
-            radius = r,
-            center = Offset(cx, cy),
-            blendMode = BlendMode.Plus
-        )
-    }
+/**
+ * Faixa de luz que entra pela borda direita: sobre a calçada e a rua, forte junto da balada e fraca
+ * para o centro. Textura de pixel art, colorida pela balada (mesma cor do Rim).
+ */
+private fun DrawScope.drawClubSpill(bitmaps: NightStreetBitmaps, view: StreetCamera.View, club: ClubFrame) {
+    val leftU = NightStreetLayout.WORLD_WIDTH - NightStreetLayout.CLUB_SPILL_W - view.cameraX
+    drawSpriteUnits(
+        bmp = bitmaps.sprites.getValue(NightSprite.CLUB_SPILL),
+        leftU = leftU,
+        topU = NightStreetLayout.GROUND_TOP,
+        widthU = NightStreetLayout.CLUB_SPILL_W,
+        heightU = NightStreetLayout.CLUB_SPILL_H,
+        unitPx = view.scale,
+        flip = false,
+        colorFilter = club.filter,
+        alpha = ClubLights.spillAlpha(club.level),
+        blendMode = BlendMode.Plus
+    )
+}
+
+/** Pontos de neon pixelados, colados na borda direita da tela (a balada fica além dela). */
+private fun DrawScope.drawClubAccents(bitmaps: NightStreetBitmaps, view: StreetCamera.View, club: ClubFrame) {
+    val screenRightU = size.width / view.scale
+    val leftU = screenRightU - NightStreetLayout.CLUB_ACCENT_W - NightStreetLayout.CLUB_ACCENT_MARGIN
+    drawSpriteUnits(
+        bmp = bitmaps.sprites.getValue(NightSprite.CLUB_ACCENTS),
+        leftU = leftU,
+        topU = NightStreetLayout.CLUB_ACCENT_TOP,
+        widthU = NightStreetLayout.CLUB_ACCENT_W,
+        heightU = NightStreetLayout.CLUB_ACCENT_H,
+        unitPx = view.scale,
+        flip = false,
+        colorFilter = club.filter,
+        alpha = ClubLights.accentAlpha(club.level),
+        blendMode = BlendMode.Plus
+    )
 }
 
 private fun DrawScope.drawLampPosts(bitmaps: NightStreetBitmaps, view: StreetCamera.View) {

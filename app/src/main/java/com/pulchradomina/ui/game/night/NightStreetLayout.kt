@@ -26,7 +26,26 @@ enum class NightSprite(val file: String) {
     SIDEWALK("sidewalk.png"),
     ROAD("road.png"),
     ITEM("item_maveth_flower.png"),
-    LAMP_LIGHT("lamp_light.png");
+    ITEM_INDICATOR("item_maveth_indicator.png"),
+    LAMP_LIGHT("lamp_light.png"),
+    CLUB_SPILL("club_spill.png"),
+    CLUB_ACCENTS("club_accents.png"),
+    RIM_TREE_1_R("rim_tree_1_r.png"),
+    RIM_TREE_1_L("rim_tree_1_l.png"),
+    RIM_TREE_2_R("rim_tree_2_r.png"),
+    RIM_TREE_2_L("rim_tree_2_l.png"),
+    RIM_TREE_3_R("rim_tree_3_r.png"),
+    RIM_TREE_3_L("rim_tree_3_l.png"),
+    RIM_TREE_4_R("rim_tree_4_r.png"),
+    RIM_TREE_4_L("rim_tree_4_l.png"),
+    RIM_TREE_5_R("rim_tree_5_r.png"),
+    RIM_TREE_5_L("rim_tree_5_l.png"),
+    RIM_TREE_6_R("rim_tree_6_r.png"),
+    RIM_TREE_6_L("rim_tree_6_l.png"),
+    RIM_BENCH_1_R("rim_bench_1_r.png"),
+    RIM_BENCH_1_L("rim_bench_1_l.png"),
+    RIM_BENCH_2_R("rim_bench_2_r.png"),
+    RIM_BENCH_2_L("rim_bench_2_l.png");
 }
 
 /** Camadas de fundo -> frente. A calçada, a rua, os postes e o Edgar ficam fora destas camadas. */
@@ -129,10 +148,27 @@ internal object NightStreetLayout {
 
     val lamps: List<Lamp> = listOf(
         Lamp(x = 266.0f, baseY = 1222.0f, h = 455.0f, apexY = 804.92f, groundY = 1248.0f, topHalf = 22.75f, baseHalf = 172.9f, bulbW = 50.05f, bulbH = 15.93f),
-        Lamp(x = 623.0f, baseY = 1222.0f, h = 360.0f, apexY = 892.0f, groundY = 1248.0f, topHalf = 18.0f, baseHalf = 136.8f, bulbW = 39.6f, bulbH = 12.6f),
         Lamp(x = 1207.0f, baseY = 1222.0f, h = 455.0f, apexY = 804.92f, groundY = 1248.0f, topHalf = 22.75f, baseHalf = 172.9f, bulbW = 50.05f, bulbH = 15.93f),
-        Lamp(x = 1564.0f, baseY = 1222.0f, h = 360.0f, apexY = 892.0f, groundY = 1248.0f, topHalf = 18.0f, baseHalf = 136.8f, bulbW = 39.6f, bulbH = 12.6f),
         Lamp(x = 2148.0f, baseY = 1222.0f, h = 455.0f, apexY = 804.92f, groundY = 1248.0f, topHalf = 22.75f, baseHalf = 172.9f, bulbW = 50.05f, bulbH = 15.93f),
-        Lamp(x = 2505.0f, baseY = 1222.0f, h = 360.0f, apexY = 892.0f, groundY = 1248.0f, topHalf = 18.0f, baseHalf = 136.8f, bulbW = 39.6f, bulbH = 12.6f),
     )
+
+    /** Máscara de borda (luz da balada) por sprite: (bordas direitas, bordas esquerdas espelhadas). */
+    val rimMasks: Map<NightSprite, Pair<NightSprite, NightSprite>> = mapOf(
+        NightSprite.TREE_1 to (NightSprite.RIM_TREE_1_R to NightSprite.RIM_TREE_1_L),
+        NightSprite.TREE_2 to (NightSprite.RIM_TREE_2_R to NightSprite.RIM_TREE_2_L),
+        NightSprite.TREE_3 to (NightSprite.RIM_TREE_3_R to NightSprite.RIM_TREE_3_L),
+        NightSprite.TREE_4 to (NightSprite.RIM_TREE_4_R to NightSprite.RIM_TREE_4_L),
+        NightSprite.TREE_5 to (NightSprite.RIM_TREE_5_R to NightSprite.RIM_TREE_5_L),
+        NightSprite.TREE_6 to (NightSprite.RIM_TREE_6_R to NightSprite.RIM_TREE_6_L),
+        NightSprite.BENCH_1 to (NightSprite.RIM_BENCH_1_R to NightSprite.RIM_BENCH_1_L),
+        NightSprite.BENCH_2 to (NightSprite.RIM_BENCH_2_R to NightSprite.RIM_BENCH_2_L),
+    )
+
+    /** Luz da balada no chão: tamanho em unidades e altura do topo dos pontos de neon. */
+    const val CLUB_SPILL_W = 560.0f
+    const val CLUB_SPILL_H = 420.0f
+    const val CLUB_ACCENT_W = 48f
+    const val CLUB_ACCENT_H = 400f
+    const val CLUB_ACCENT_TOP = 620f
+    const val CLUB_ACCENT_MARGIN = 10f
 }
