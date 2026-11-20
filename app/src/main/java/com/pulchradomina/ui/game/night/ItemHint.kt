@@ -7,21 +7,24 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.vector.PathParser
-import kotlin.math.PI
 import kotlin.math.max
-import kotlin.math.sin
 
 /**
- * Aviso de item no chão: círculo branco vazado com uma mão branca dentro, sobre o item.
- * Aparece quando o Edgar chega a até ITEM_HINT_RADIUS do item e some quando ele se afasta
- * (a opacidade anima em NightStreetScene, para não piscar).
+ * Aviso de toque acima de um item do chão: círculo branco vazado com uma mão branca dentro, pequeno,
+ * logo acima do item (sem cobrir a arte, que continua com o contorno pulsante).
  *
- * O círculo é vazado de propósito: o item continua visível por baixo, e o aviso não compete com a arte.
+ * Entrada: fade in que sobe de baixo para cima. Saída: fade out rápido, sem movimento.
+ * A animação (progress 0..1) é feita em NightStreetScene com Animatable.
  */
 internal object ItemHint {
-    internal const val RADIUS_FACTOR = 0.9f   // raio do círculo em relação à altura do item
-    internal const val GLYPH_FACTOR = 1.1f    // lado da mão em relação ao raio
-    internal const val BOB_UNITS = 1.0f       // flutuação suave, em unidades de referência
+    /** Raio do círculo, em relação à altura do item (pequeno de propósito). */
+    internal const val RADIUS_FACTOR = 0.16f
+    /** Distância entre o topo do item e a base do círculo, em relação à altura do item. */
+    internal const val GAP_FACTOR = 0.04f
+    /** Quanto o aviso começa mais embaixo na entrada, em relação à altura do item. */
+    internal const val RISE_FACTOR = 0.08f
+    /** Lado da mão dentro do círculo, em relação ao diâmetro (menor que antes, com folga). */
+    internal const val GLYPH_FACTOR = 0.6f
 
     /** Path da mão vindo do SVG (tools/night_street/sources/hand_hint.svg), criado uma vez. */
     internal val handPath: Path by lazy {
@@ -30,30 +33,27 @@ internal object ItemHint {
 }
 
 /**
- * [alpha] 0..1 (animado). [seconds] dá a flutuação. Só desenha se houver alpha.
+ * [progress] 0..1 (animado). Só desenha se houver progresso.
  */
-internal fun DrawScope.drawItemHint(
-    item: Prop,
-    cameraX: Float,
-    unitPx: Float,
-    alpha: Float,
-    seconds: Float
-) {
-    if (alpha <= 0f) return
-    val grow = 0.7f + 0.3f * alpha                      // entra crescendo, do menor para o tamanho cheio
-    val bob = -ItemHint.BOB_UNITS * alpha * sin(2f * PI.toFloat() * seconds / 1.6f)
-    val cx = (item.x - cameraX) * unitPx
-    val cy = (item.top + item.h / 2f + bob) * unitPx
-    val r = item.h * ItemHint.RADIUS_FACTOR * unitPx * grow
-    val white = Color.White.copy(alpha = alpha)
+internal fun DrawScope.drawItemHint(item: Prop, cameraX: Float, unitPx: Float, progress: Float) {
+    if (progress <= 0f) return
+    val rUnits = item.h * ItemHint.RADIUS_FACTOR
+    val rise = (1f - progress) * item.h * ItemHint.RISE_FACTOR
+    val cxUnits = item.x
+    val cyUnits = item.top - item.h * ItemHint.GAP_FACTOR - rUnits + rise
+
+    val cx = (cxUnits - cameraX) * unitPx
+    val cy = cyUnits * unitPx
+    val r = rUnits * unitPx
+    val white = Color.White.copy(alpha = progress)
 
     drawCircle(
         color = white,
         radius = r,
         center = Offset(cx, cy),
-        style = Stroke(width = max(2f, r * 0.08f))
+        style = Stroke(width = max(1f, r * 0.12f))
     )
-    val side = r * ItemHint.GLYPH_FACTOR
+    val side = 2f * r * ItemHint.GLYPH_FACTOR
     withTransform({
         translate(cx - side / 2f, cy - side / 2f)
         scale(side / 24f, side / 24f, pivot = Offset.Zero)

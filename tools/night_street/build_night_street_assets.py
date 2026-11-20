@@ -53,7 +53,6 @@ PREBUILT_SPRITES = {
     "ITEM_INDICATOR": "item_maveth_indicator.png",  # contorno de destaque da flor (pulsa); idem
     "LAMP_LIGHT": "lamp_light.png",                 # gerada por write_lamp_light() (cone de luz dos postes)
     "CLUB_SPILL": "club_spill.png",                 # derive_assets(): luz da balada no chão, perto da borda direita
-    "CLUB_ACCENTS": "club_accents.png",             # derive_assets(): pontos de neon pixelados na borda direita
 }
 # Luz da balada por borda (Rim): máscara só das bordas voltadas para a direita (_R) e para a esquerda (_L,
 # usada quando o prop está espelhado). Gerada a partir do alfa dos PNGs do cenário (derive_rim_masks()).
@@ -66,13 +65,9 @@ for _k in RIM_SPRITES:
 CLUB_SPILL_W = 560.0          # largura da faixa de luz que entra pela borda direita
 CLUB_SPILL_H = 420.0          # altura (a partir da calçada)
 CLUB_SPILL_PX = 4             # pixel art: 1 px da textura = 4 unidades
-CLUB_ACCENT_W = 48            # faixa de pontos de neon, colada na borda direita
-CLUB_ACCENT_H = 400
-CLUB_ACCENT_TOP = 620         # acima dos prédios da direita, sem cobrir o Edgar
-CLUB_ACCENT_MARGIN = 10
 # Itens no chão da calçada (base na linha dos pés, desenhados depois do chão e antes do Edgar).
 GROUND_PROPS_SPEC = [
-    dict(s="ITEM", x=2440, base=1252, h=53),   # v3.1: +10% (48 -> 53), mesmo plano dos pés   # perto do fim da linha, no mesmo plano dos pés
+    dict(s="ITEM", x=2440, base=1252, h=84),   # v3.2: flor bem maior (53 -> 84), mesmo plano dos pés
 ]
 
 # Postes: X e base/altura NÃO mudam (pedido do usuário). Só o sprite é usado como está.
@@ -350,31 +345,11 @@ def derive_club_spill(out_assets):
     rgba[..., 3] = np.round(a * 255).astype(np.uint8)
     Image.fromarray(rgba, "RGBA").save(os.path.join(out_assets, "club_spill.png"), optimize=True)
 
-def derive_club_accents(out_assets):
-    """Pontos de neon pixelados (clusters dithered), colados na borda direita. Mesma cor do momento."""
-    w, h = CLUB_ACCENT_W, CLUB_ACCENT_H
-    rng = np.random.default_rng(7351)
-    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
-    alpha = np.zeros((h, w), np.float32)
-    bay = _bayer_tile(h, w, BAYER4)
-    for _ in range(6):
-        cx = rng.uniform(10, w - 8)
-        cy = rng.uniform(20, h - 20)
-        r = rng.uniform(6.0, 10.0)
-        dist = np.sqrt((xx - cx) ** 2 + ((yy - cy) * 1.3) ** 2) / r
-        p = np.clip(1.0 - dist, 0, 1)
-        alpha = np.maximum(alpha, np.where(p > bay, 1.0, 0.0) * (p > 0))
-    rgba = np.zeros((h, w, 4), np.uint8)
-    rgba[..., :3] = 255
-    rgba[..., 3] = (alpha * 255).astype(np.uint8)
-    Image.fromarray(rgba, "RGBA").save(os.path.join(out_assets, "club_accents.png"), optimize=True)
-
 def derive_assets(out_assets, road_base):
     """Tudo que o pipeline cria sem o zip original. Determinístico: rodar duas vezes dá o mesmo resultado."""
     road_mean, road_std = derive_road(out_assets, road_base)
     derive_rim_masks(out_assets)
     derive_club_spill(out_assets)
-    derive_club_accents(out_assets)
     print(f"asfalto: luminância média {road_mean:.1f}, desvio {road_std:.1f}")
 
 # ------------------------------------------------------------ build
@@ -417,7 +392,7 @@ def repo_png(out_assets, fname):
         return dict(file=fname, aspect=im.width / im.height, w=im.width, h=im.height)
 
 HINT_SVG_REL = "tools/night_street/sources/hand_hint.svg"
-ITEM_HINT_RADIUS = 10.0   # pontos percentuais do mundo; = ExplorationRules.ITEM_HINT_RADIUS
+ITEM_HINT_RADIUS = 3.0    # pontos percentuais do mundo; = ExplorationRules.ITEM_HINT_RADIUS (v3.2)
 
 def read_hand_path(repo):
     """Path (d) do ícone de mão em tools/night_street/sources/hand_hint.svg (viewBox 0 0 24 24)."""
@@ -524,6 +499,9 @@ def build(args):
         for g in ground_props
     ]
     hand_path = read_hand_path(args.repo)
+    item_ind_scale = meta["ITEM_INDICATOR"]["h"] / meta["ITEM"]["h"]
+    global ITEM_INDICATOR_SCALE_H
+    ITEM_INDICATOR_SCALE_H = item_ind_scale
     rim_lines = [
         f'        NightSprite.{k} to (NightSprite.RIM_{k}_R to NightSprite.RIM_{k}_L),' for k in RIM_SPRITES
     ]
@@ -622,10 +600,8 @@ internal object NightStreetLayout {{
     /** Luz da balada no chão: tamanho em unidades e altura do topo dos pontos de neon. */
     const val CLUB_SPILL_W = {fk(CLUB_SPILL_W)}
     const val CLUB_SPILL_H = {fk(CLUB_SPILL_H)}
-    const val CLUB_ACCENT_W = {CLUB_ACCENT_W}f
-    const val CLUB_ACCENT_H = {CLUB_ACCENT_H}f
-    const val CLUB_ACCENT_TOP = {CLUB_ACCENT_TOP}f
-    const val CLUB_ACCENT_MARGIN = {CLUB_ACCENT_MARGIN}f
+    /** Halo do indicador da flor em relação à altura da PNG da flor (indicador tem margem para o halo). */
+    const val ITEM_INDICATOR_SCALE_H = {item_ind_scale:.4f}f
 
     /** Ícone de mão do aviso de item (SVG, viewBox 0 0 24 24), de tools/night_street/sources/hand_hint.svg. */
     const val ITEM_HINT_HAND_PATH = "{hand_path}"
@@ -807,10 +783,7 @@ def render_view(built, cam_units, scale, vp_w, vp_h, edgar_x_units, facing_right
     out = Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8), "RGB").convert("RGBA")
     if club is not None:
         rgb_c, level = club
-        # pontos de neon colados na borda direita da tela
-        screen_right = vp_w / scale
-        add_light("club_accents.png", cam_units + screen_right - CLUB_ACCENT_W - CLUB_ACCENT_MARGIN,
-                  CLUB_ACCENT_TOP, CLUB_ACCENT_W, CLUB_ACCENT_H, False, rgb_c, level * ACCENT_GAIN_PREVIEW)
+
     d = ImageDraw.Draw(out, "RGBA")
     bulb = [(BULB_COLOR_ARGB >> s) & 0xFF for s in (16, 8, 0)]
     for g in built["lamps"]:
@@ -822,6 +795,7 @@ def render_view(built, cam_units, scale, vp_w, vp_h, edgar_x_units, facing_right
     # aviso da mão sobre o item: só quando o Edgar está a até ITEM_HINT_RADIUS do item
     item = next((g for g in built["ground_props"] if g["s"] == "ITEM"), None)
     if item is not None:
+        draw_item_indicator(out, item, cam_units, scale, 0.6, base)
         hint = item_hint_alpha(edgar_x_units / WORLD_W * 100, item["gx"] / WORLD_W * 100)
         if hint > 0:
             draw_item_hint(out, item, cam_units, scale, hint)
@@ -829,9 +803,8 @@ def render_view(built, cam_units, scale, vp_w, vp_h, edgar_x_units, facing_right
 
 RIM_GAIN_PREVIEW = 1.23       # espelha ClubLights.RIM_GAIN (v3.1)
 SPILL_GAIN_PREVIEW = 0.6      # espelha ClubLights.SPILL_GAIN
-ACCENT_GAIN_PREVIEW = 0.9     # espelha ClubLights.ACCENT_GAIN
 CLUB_PREVIEW_COLOR = 0xFF2EC8  # magenta (primeira cor da sequência)
-CLUB_PREVIEW_LEVEL = 0.28 + 0.62 * 0.6   # nível com pulso médio
+CLUB_PREVIEW_LEVEL = 0.36 + 0.62 * 0.6   # nível com pulso médio
 
 _HAND_POLY = None
 
@@ -855,16 +828,36 @@ def item_hint_alpha(player_pct, item_pct):
     """Regra do jogo: aviso aparece a até ITEM_HINT_RADIUS pontos percentuais do item."""
     return 1.0 if abs(item_pct - player_pct) <= ITEM_HINT_RADIUS else 0.0
 
-def draw_item_hint(out, g, cam_units, scale, alpha):
-    """Círculo branco vazado + mão branca sobre o item (espelha ItemHint.kt)."""
+def draw_item_indicator(out, g, cam_units, scale, alpha, assets_dir):
+    """Halo dourado pulsante ao redor da flor (espelha o drawSpriteUnits do ITEM_INDICATOR)."""
+    with Image.open(os.path.join(assets_dir, "item_maveth_indicator.png")) as im:
+        ind = im.convert("RGBA")
+    h_u = g["h"] * ITEM_INDICATOR_SCALE_H
+    w_u = h_u * ind.width / ind.height
     cx = (g["gx"] - cam_units) * scale
     cy = (g["base"] - g["h"] / 2) * scale
-    r = g["h"] * 0.9 * scale * (0.7 + 0.3 * alpha)
+    w_px, h_px = round(w_u * scale), round(h_u * scale)
+    if w_px < 2 or h_px < 2:
+        return
+    ind = ind.resize((w_px, h_px), Image.BOX)
+    ind.putalpha(ind.getchannel("A").point(lambda v: int(v * alpha)))
+    layer = Image.new("RGBA", out.size, (0, 0, 0, 0))
+    layer.paste(ind, (round(cx - w_px / 2), round(cy - h_px / 2)), ind)
+    out.alpha_composite(layer)
+
+def draw_item_hint(out, g, cam_units, scale, progress):
+    """Aviso pequeno acima do item (espelha ItemHint.kt): círculo vazado + mão, subindo ao aparecer."""
+    top = g["base"] - g["h"]
+    r_u = g["h"] * 0.16
+    rise = (1 - progress) * g["h"] * 0.08
+    cx = (g["gx"] - cam_units) * scale
+    cy = (top - g["h"] * 0.04 - r_u + rise) * scale
+    r = r_u * scale
     layer = Image.new("RGBA", out.size, (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
-    a = int(255 * alpha)
-    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=(255, 255, 255, a), width=max(2, round(r * 0.08)))
-    side = r * 1.1
+    a = int(255 * progress)
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=(255, 255, 255, a), width=max(1, round(r * 0.12)))
+    side = 2 * r * 0.6
     pts = [(cx - side / 2 + x * side / 24, cy - side / 2 + y * side / 24) for x, y in hand_polygon()]
     d.polygon(pts, fill=(255, 255, 255, a))
     out.alpha_composite(layer)
@@ -885,7 +878,7 @@ def preview(args, built, club=True, club_level=None):
         ("06_entre_postes_70pct", 70.0, True, 30),
         ("07_fim_do_caminho_96pct", 96.0, True, 18),
         ("08_perto_da_flor_aviso", 86.4, True, 0),
-        ("09_longe_da_flor_sem_aviso", 60.0, True, 0),
+        ("09_longe_da_flor_sem_aviso", 80.0, True, 0),
     ]
     tiles = []
     level = CLUB_PREVIEW_LEVEL if club_level is None else club_level

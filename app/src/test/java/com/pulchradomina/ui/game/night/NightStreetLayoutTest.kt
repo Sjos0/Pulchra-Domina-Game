@@ -110,12 +110,13 @@ class NightStreetLayoutTest {
     }
 
     @Test
-    fun groundItem_isSmall_nearTheEndOfTheWorld_andOnTheSidewalk() {
+    fun groundItem_isSmallerThanAThird_ofEdgar_nearTheEndOfTheWorld_andOnTheSidewalk() {
         val item = NightStreetLayout.groundProps.single { it.sprite == NightSprite.ITEM }
         assertTrue(item.x > worldWidth * 0.8f && item.x < worldWidth)
         val base = item.top + item.h
         assertTrue(base > NightStreetLayout.GROUND_TOP && base <= NightStreetLayout.ROAD_TOP)
-        assertTrue(item.h < NightStreetLayout.EDGAR_HEIGHT / 4f)
+        // v3.2: flor bem maior (84), mas ainda menor que um terço do Edgar
+        assertTrue(item.h < NightStreetLayout.EDGAR_HEIGHT / 3f)
     }
 
     @Test
@@ -139,18 +140,18 @@ class NightStreetLayoutTest {
     }
 
     @Test
-    fun clubSpill_isNearTheRightEnd_andClubAccents_hugTheRight() {
+    fun clubSpill_isNearTheRightEnd() {
         assertTrue(NightStreetLayout.CLUB_SPILL_W < worldWidth / 2f)
-        assertTrue(NightStreetLayout.CLUB_ACCENT_TOP + NightStreetLayout.CLUB_ACCENT_H < NightStreetLayout.GROUND_TOP)
-        assertTrue(NightStreetLayout.CLUB_ACCENT_W < 100f)
     }
 
     @Test
-    fun flowerIndicator_sameSizeAsTheFlower() {
+    fun flowerIndicator_isTheFlowerPlusAHalo_andTheLayoutScaleMatchesIt() {
         val flower = javax.imageio.ImageIO.read(File(assetsDir, NightSprite.ITEM.file))
-        val ring = javax.imageio.ImageIO.read(File(assetsDir, NightSprite.ITEM_INDICATOR.file))
-        assertEquals(flower.width, ring.width)
-        assertEquals(flower.height, ring.height)
+        val halo = javax.imageio.ImageIO.read(File(assetsDir, NightSprite.ITEM_INDICATOR.file))
+        // o indicador tem margem de halo em volta da flor (centro igual)
+        assertTrue(halo.width > flower.width && halo.height > flower.height)
+        val ratio = halo.height.toFloat() / flower.height
+        assertEquals(ratio, NightStreetLayout.ITEM_INDICATOR_SCALE_H, 0.002f)
     }
 
     @Test

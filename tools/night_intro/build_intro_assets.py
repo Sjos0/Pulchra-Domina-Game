@@ -40,6 +40,8 @@ RING_MIN_BRIGHTNESS = 170
 # Cor do contorno na arte (lilás apagado, cabe na paleta noturna) e do indicador (dourado quente).
 RING_ART_RGB = (112, 82, 160)
 INDICATOR_RGB = (255, 206, 140)
+# Halo do indicador, em proporção da altura da flor: faixa dourada que sai do contorno e pulsa.
+HALO_RATIO = 0.085
 
 
 def crop_to_content(rgba):
@@ -66,6 +68,7 @@ def build_item():
     border = set(np.unique(np.concatenate([labels[0], labels[-1], labels[:, 0], labels[:, -1]])))
     border.discard(0)
     outside = np.isin(labels, list(border))
+    opaque = ~outside
     ring = ring_mask(rgb, outside)
 
     # Arte: sombra interna da flor continua igual; só o anel claro vira contorno lilás apagado.
@@ -77,12 +80,33 @@ def build_item():
     crop = crop_to_content(rgba)
     _save(rgba, OUT_ITEM, crop)
 
-    # Indicador: o mesmo anel, em dourado, com o mesmo recorte (alinhado pixel a pixel com a arte).
-    ind = np.zeros(rgb.shape[:2] + (4,), np.float32)
-    ind[ring, :3] = INDICATOR_RGB
-    ind[ring, 3] = 255
-    _save(ind, OUT_INDICATOR, crop)
+    # Indicador: o anel dourado + um halo fora da flor. Janela = recorte da flor com margem de H px
+    # em cada lado, para o halo não ser cortado. O centro da janela é o centro da flor.
+    x0, y0, x1, y1 = crop
+    H = max(4, round(HALO_RATIO * (y1 - y0)))
+    opaque_p = np.pad(opaque, H, constant_values=False)
+    ring_p = np.pad(ring, H, constant_values=False)
+    op_w = opaque_p[y0:y1 + 2 * H, x0:x1 + 2 * H]
+    ring_w = ring_p[y0:y1 + 2 * H, x0:x1 + 2 * H]
+    dist = ndimage.distance_transform_edt(~op_w)     # 0 dentro da flor; distância para fora
+    halo = (dist > 0) & (dist <= H)
+    solid = halo & (dist <= 0.55 * H)                # faixa interna do halo: sólida
+    outer = halo & ~solid                            # faixa externa: dithering (pixel art, sem degradê)
+    bayer = _bayer(op_w.shape)
+    outer = outer & (bayer < 0.5)
+    ind = np.zeros(op_w.shape + (4,), np.float32)
+    ind[ring_w | solid | outer, :3] = INDICATOR_RGB
+    ind[ring_w | solid | outer, 3] = 255
+    img = Image.fromarray(np.clip(ind, 0, 255).astype(np.uint8), "RGBA")
+    img.save(OUT_INDICATOR, optimize=True)
+    print("indicador:", img.size, "halo px:", H)
     return crop
+
+
+def _bayer(shape):
+    b = np.array([[0, 2], [3, 1]], np.float32) / 4.0
+    h, w = shape
+    return np.tile(b, (h // 2 + 1, w // 2 + 1))[:h, :w]
 
 
 def _save(rgba, path, crop):

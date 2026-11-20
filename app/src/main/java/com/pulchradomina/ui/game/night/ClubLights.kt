@@ -33,13 +33,12 @@ internal object ClubLights {
     const val ACTIVE_WINDOW_S = 2.5f
 
     /** Nível de base (sem música) e amplitude do pulso, 0..1. */
-    const val BASE_LEVEL = 0.28f
+    const val BASE_LEVEL = 0.36f
     const val PULSE_LEVEL = 0.62f
 
     /** Ganhos máximos por tipo de luz (multiplicam o nível). */
     const val RIM_GAIN = 1.23f
     const val SPILL_GAIN = 0.6f
-    const val ACCENT_GAIN = 0.9f
 
     fun colorIndexFor(beatCount: Int): Int = (beatCount.coerceAtLeast(0) / BEATS_PER_COLOR) % SEQUENCE.size
 
@@ -63,8 +62,6 @@ internal object ClubLights {
         (proximity(worldX, worldWidth) * level * RIM_GAIN).coerceIn(0f, 1f)
 
     fun spillAlpha(level: Float): Float = level * SPILL_GAIN
-
-    fun accentAlpha(level: Float): Float = level * ACCENT_GAIN
 
     private fun smoothstep(x: Float): Float {
         val t = x.coerceIn(0f, 1f)
