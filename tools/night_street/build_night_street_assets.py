@@ -67,7 +67,7 @@ CLUB_SPILL_H = 420.0          # altura (a partir da calçada)
 CLUB_SPILL_PX = 4             # pixel art: 1 px da textura = 4 unidades
 # Itens no chão da calçada (base na linha dos pés, desenhados depois do chão e antes do Edgar).
 GROUND_PROPS_SPEC = [
-    dict(s="ITEM", x=2440, base=1252, h=84),   # v3.2: flor bem maior (53 -> 84), mesmo plano dos pés
+    dict(s="ITEM", x=2440, base=1252, h=55),   # v3.3: flor 55 (era 84), mesmo plano dos pés
 ]
 
 # Postes: X e base/altura NÃO mudam (pedido do usuário). Só o sprite é usado como está.
@@ -848,10 +848,10 @@ def draw_item_indicator(out, g, cam_units, scale, alpha, assets_dir):
 def draw_item_hint(out, g, cam_units, scale, progress):
     """Aviso pequeno acima do item (espelha ItemHint.kt): círculo vazado + mão, subindo ao aparecer."""
     top = g["base"] - g["h"]
-    r_u = g["h"] * 0.16
-    rise = (1 - progress) * g["h"] * 0.08
+    r_u = g["h"] * 0.36
+    rise = (1 - progress) * g["h"] * 0.10
     cx = (g["gx"] - cam_units) * scale
-    cy = (top - g["h"] * 0.04 - r_u + rise) * scale
+    cy = (top - g["h"] * 0.20 - r_u + rise) * scale
     r = r_u * scale
     layer = Image.new("RGBA", out.size, (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)

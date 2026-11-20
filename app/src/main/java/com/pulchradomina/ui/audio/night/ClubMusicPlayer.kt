@@ -5,9 +5,7 @@ import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.media.audiofx.EnvironmentalReverb
 import android.media.audiofx.Equalizer
-import android.media.audiofx.Visualizer
 import android.util.Log
-import com.pulchradomina.ui.game.night.ClubBeatDetector
 import com.pulchradomina.ui.game.night.ClubBeats
 import kotlin.math.abs
 
@@ -22,10 +20,9 @@ private const val MUFFLE_EPSILON = 0.01f
  * Distância simulada no próprio player (efeitos presos à sessão de áudio dele):
  *  - reverb: EnvironmentalReverb. Perto do clube, pouca cauda e nível baixo; longe, cauda longa e mais úmida.
  *  - muffle: Equalizer. Longe, os agudos (acima de ~1 kHz) caem até ~12 dB, o que abafa a faixa.
- * Batidas: o Visualizer da mesma sessão lê o FFT do que está tocando. A energia dos graves passa por
- * [ClubBeatDetector], e cada batida real vai para [ClubBeats] (a luz pulsa nelas, sem timer e sem BPM fixo).
- * Pausa e loop seguem o som, porque a captura só acontece enquanto há áudio.
- * Se o aparelho não aceitar um dos efeitos ou o Visualizer, a faixa segue sem ele e o log registra o motivo.
+ * Pulso da luz: relógio de 120 BPM em [ClubBeats], não a música. Ele anda só enquanto a faixa toca
+ * (pausa e volta junto), e o player avisa quando começa, pausa, volta e para.
+ * Se o aparelho não aceitar um dos efeitos, a faixa segue sem ele e o log registra o motivo.
  */
 internal class ClubMusicPlayer(private val context: Context) {
     private var player: MediaPlayer? = null
@@ -33,8 +30,6 @@ internal class ClubMusicPlayer(private val context: Context) {
     private var equalizer: Equalizer? = null
     private var lastMuffle = -1f
     private var volume = 0f
-    private var visualizer: Visualizer? = null
-    private val beatDetector = ClubBeatDetector()
 
     fun start() {
         if (player != null) return
@@ -58,9 +53,9 @@ internal class ClubMusicPlayer(private val context: Context) {
             return
         }
         attachEffects(mp.audioSessionId)
-        attachBeatCapture(mp.audioSessionId)
         mp.start()
         player = mp
+        ClubBeats.setRunning(true, System.nanoTime())
     }
 
     fun setVolume(value: Float) {
@@ -101,6 +96,7 @@ internal class ClubMusicPlayer(private val context: Context) {
             player?.let { if (it.isPlaying) it.pause() }
         } catch (_: IllegalStateException) {
         }
+        ClubBeats.setRunning(false, System.nanoTime())
     }
 
     fun resume() {
@@ -108,6 +104,7 @@ internal class ClubMusicPlayer(private val context: Context) {
             player?.let { if (!it.isPlaying) it.start() }
         } catch (_: IllegalStateException) {
         }
+        if (player != null) ClubBeats.setRunning(true, System.nanoTime())
     }
 
     fun release() {
@@ -115,15 +112,6 @@ internal class ClubMusicPlayer(private val context: Context) {
         reverb = null
         equalizer?.release()
         equalizer = null
-        visualizer?.let {
-            try {
-                it.enabled = false
-            } catch (_: IllegalStateException) {
-            }
-            it.release()
-        }
-        visualizer = null
-        beatDetector.reset()
         ClubBeats.reset()
         val mp = player ?: return
         player = null
@@ -132,34 +120,6 @@ internal class ClubMusicPlayer(private val context: Context) {
         } catch (_: IllegalStateException) {
         }
         mp.release()
-    }
-
-    private fun attachBeatCapture(sessionId: Int) {
-        try {
-            val v = Visualizer(sessionId).apply {
-                captureSize = Visualizer.getCaptureSizeRange()[1]
-            }
-            v.setDataCaptureListener(
-                object : Visualizer.OnDataCaptureListener {
-                    override fun onWaveFormDataCapture(visualizer: Visualizer?, waveform: ByteArray?, samplingRate: Int) {}
-
-                    override fun onFftDataCapture(visualizer: Visualizer?, fft: ByteArray?, samplingRate: Int) {
-                        if (fft == null) return
-                        val now = System.nanoTime()
-                        if (beatDetector.onEnergy(now, ClubBeatDetector.bassEnergy(fft, samplingRate))) {
-                            ClubBeats.onBeat(now)
-                        }
-                    }
-                },
-                Visualizer.getMaxCaptureRate(),
-                false,
-                true
-            )
-            v.enabled = true
-            visualizer = v
-        } catch (e: RuntimeException) {
-            Log.w(TAG, "Visualizer indisponível: a luz da balada fica sem batida", e)
-        }
     }
 
     private fun attachEffects(sessionId: Int) {

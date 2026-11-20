@@ -54,7 +54,7 @@ private class ClubFrame(val level: Float, val beatCount: Int) {
 private fun clubFrameNow(): ClubFrame {
     val now = System.nanoTime()
     val pulse = ClubLights.pulseAt(ClubBeats.secondsSinceBeat(now))
-    return ClubFrame(ClubLights.level(pulse), ClubBeats.beatCount())
+    return ClubFrame(ClubLights.level(pulse), ClubBeats.beatCount(now))
 }
 
 /**
@@ -108,13 +108,13 @@ fun NightStreetScene(
         )
     val itemHint = remember { Animatable(0f) }
     LaunchedEffect(nearItem) {
+        // entrada e saída com 300 ms; a saída é a entrada ao contrário (no tempo e na curva)
         itemHint.animateTo(
             targetValue = if (nearItem) 1f else 0f,
-            animationSpec = if (nearItem) {
-                tween(durationMillis = 300, easing = FastOutSlowInEasing)
-            } else {
-                tween(durationMillis = 120)
-            }
+            animationSpec = tween(
+                durationMillis = ItemHint.ANIM_MS,
+                easing = if (nearItem) FastOutSlowInEasing else ItemHint.REVERSED_EASING
+            )
         )
     }
 

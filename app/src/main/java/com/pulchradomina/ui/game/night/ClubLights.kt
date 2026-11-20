@@ -8,8 +8,8 @@ import kotlin.math.exp
  *  - Faixa no chão: luz que entra pela borda direita da calçada e da rua;
  *  - Pontos de neon: pixels dithered colados na borda direita da tela.
  *
- * O pulso vem das batidas detectadas no áudio que está tocando (ver [ClubBeats]).
- * Sem batida recente (música parada ou sem captura), a luz fica no nível de base, sem pulsar.
+ * O pulso segue o relógio de 120 BPM de [ClubBeats] (não a música). Com a faixa parada, a luz fica
+ * no nível de base, sem pulsar.
  * Funções puras, testadas em JVM.
  */
 internal object ClubLights {

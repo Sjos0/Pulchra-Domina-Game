@@ -40,8 +40,10 @@ RING_MIN_BRIGHTNESS = 170
 # Cor do contorno na arte (lilás apagado, cabe na paleta noturna) e do indicador (dourado quente).
 RING_ART_RGB = (112, 82, 160)
 INDICATOR_RGB = (255, 206, 140)
-# Halo do indicador, em proporção da altura da flor: faixa dourada que sai do contorno e pulsa.
-HALO_RATIO = 0.085
+# Brilho do indicador (branco), em proporção da altura da flor, e degraus de opacidade de dentro para fora.
+HALO_RATIO = 0.14
+GLOW_RGB = (255, 255, 255)
+GLOW_STEPS = [(0.0, 0.25, 255), (0.25, 0.5, 190), (0.5, 0.75, 120), (0.75, 1.0, 60)]
 
 
 def crop_to_content(rgba):
@@ -80,26 +82,25 @@ def build_item():
     crop = crop_to_content(rgba)
     _save(rgba, OUT_ITEM, crop)
 
-    # Indicador: o anel dourado + um halo fora da flor. Janela = recorte da flor com margem de H px
-    # em cada lado, para o halo não ser cortado. O centro da janela é o centro da flor.
+    # Indicador: brilho branco fora da flor (halo), em degraus de opacidade. Sem anel por cima da arte.
+    # Janela = recorte da flor com margem de H px em cada lado, para o brilho não ser cortado.
+    # O centro da janela é o centro da flor (o gerador usa a proporção entre as duas PNGs).
     x0, y0, x1, y1 = crop
     H = max(4, round(HALO_RATIO * (y1 - y0)))
     opaque_p = np.pad(opaque, H, constant_values=False)
-    ring_p = np.pad(ring, H, constant_values=False)
     op_w = opaque_p[y0:y1 + 2 * H, x0:x1 + 2 * H]
-    ring_w = ring_p[y0:y1 + 2 * H, x0:x1 + 2 * H]
     dist = ndimage.distance_transform_edt(~op_w)     # 0 dentro da flor; distância para fora
-    halo = (dist > 0) & (dist <= H)
-    solid = halo & (dist <= 0.55 * H)                # faixa interna do halo: sólida
-    outer = halo & ~solid                            # faixa externa: dithering (pixel art, sem degradê)
-    bayer = _bayer(op_w.shape)
-    outer = outer & (bayer < 0.5)
     ind = np.zeros(op_w.shape + (4,), np.float32)
-    ind[ring_w | solid | outer, :3] = INDICATOR_RGB
-    ind[ring_w | solid | outer, 3] = 255
+    ind[..., :3] = GLOW_RGB
+    alpha = np.zeros(op_w.shape, np.float32)
+    # faixas de dentro para fora: opacidade cai em degraus (brilho limpo, sem padrão quadriculado)
+    for lo, hi, a in GLOW_STEPS:
+        band = (dist > lo * H) & (dist <= hi * H)
+        alpha[band] = a
+    ind[..., 3] = alpha
     img = Image.fromarray(np.clip(ind, 0, 255).astype(np.uint8), "RGBA")
     img.save(OUT_INDICATOR, optimize=True)
-    print("indicador:", img.size, "halo px:", H)
+    print("indicador:", img.size, "brilho px:", H)
     return crop
 
 

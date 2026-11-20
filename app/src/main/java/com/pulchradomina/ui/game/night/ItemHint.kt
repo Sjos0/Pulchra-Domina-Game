@@ -1,5 +1,7 @@
 package com.pulchradomina.ui.game.night
 
+import androidx.compose.animation.core.Easing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -17,14 +19,19 @@ import kotlin.math.max
  * A animação (progress 0..1) é feita em NightStreetScene com Animatable.
  */
 internal object ItemHint {
-    /** Raio do círculo, em relação à altura do item (pequeno de propósito). */
-    internal const val RADIUS_FACTOR = 0.16f
-    /** Distância entre o topo do item e a base do círculo, em relação à altura do item. */
-    internal const val GAP_FACTOR = 0.04f
-    /** Quanto o aviso começa mais embaixo na entrada, em relação à altura do item. */
-    internal const val RISE_FACTOR = 0.08f
-    /** Lado da mão dentro do círculo, em relação ao diâmetro (menor que antes, com folga). */
+    /** Duração da entrada e da saída, em ms. */
+    internal const val ANIM_MS = 300
+    /** Raio do círculo, em relação à altura do item (tamanho normal de ícone de toque). */
+    internal const val RADIUS_FACTOR = 0.36f
+    /** Distância entre o topo do item e a base do círculo, em relação à altura do item (fica acima do halo). */
+    internal const val GAP_FACTOR = 0.20f
+    /** Quanto o aviso se desloca na entrada (de baixo para cima) e na saída (de cima para baixo). */
+    internal const val RISE_FACTOR = 0.10f
+    /** Lado da mão dentro do círculo, em relação ao diâmetro. */
     internal const val GLYPH_FACTOR = 0.6f
+
+    /** Saída = entrada ao contrário: a curva de saída é a da entrada espelhada no tempo. */
+    internal val REVERSED_EASING: Easing = Easing { t -> 1f - FastOutSlowInEasing.transform(1f - t) }
 
     /** Path da mão vindo do SVG (tools/night_street/sources/hand_hint.svg), criado uma vez. */
     internal val handPath: Path by lazy {
