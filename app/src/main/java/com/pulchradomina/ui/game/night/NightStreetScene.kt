@@ -1,6 +1,7 @@
 package com.pulchradomina.ui.game.night
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import com.pulchradomina.domain.exploration.ExplorationRules
@@ -98,18 +99,24 @@ fun NightStreetScene(
         }
     }
 
-    // Aviso do item no chão: aparece a até 10% do mundo do item (só com o Edgar visível) e some ao afastar.
+    // Aviso do item no chão: aparece a até 3% do mundo do item (só com o Edgar visível) e some ao afastar.
     val item = remember { NightStreetLayout.groundProps.firstOrNull { it.sprite == NightSprite.ITEM } }
     val nearItem = edgarAlpha > 0.5f && item != null &&
         ExplorationRules.isNearItem(
             playerXPercent = playerWorldX / NightStreetLayout.WORLD_WIDTH * 100f,
             itemXPercent = item.x / NightStreetLayout.WORLD_WIDTH * 100f
         )
-    val itemHintAlpha: Float by animateFloatAsState(
-        targetValue = if (nearItem) 1f else 0f,
-        animationSpec = tween(durationMillis = 260),
-        label = "itemHint"
-    )
+    val itemHint = remember { Animatable(0f) }
+    LaunchedEffect(nearItem) {
+        itemHint.animateTo(
+            targetValue = if (nearItem) 1f else 0f,
+            animationSpec = if (nearItem) {
+                tween(durationMillis = 300, easing = FastOutSlowInEasing)
+            } else {
+                tween(durationMillis = 120)
+            }
+        )
+    }
 
     Canvas(modifier = modifier) {
         val seconds = elapsedNanos.longValue / 1_000_000_000f
@@ -132,8 +139,7 @@ fun NightStreetScene(
         drawClubSpill(bitmaps, view, club)
         drawLampCones(bitmaps, view)
         drawLampBulbs(view)
-        drawClubAccents(bitmaps, view, club)
-        item?.let { drawItemHint(it, view.cameraX, view.scale, itemHintAlpha, seconds) }
+        item?.let { drawItemHint(it, view.cameraX, view.scale, itemHint.value) }
     }
 }
 
@@ -249,17 +255,20 @@ private fun DrawScope.drawGroundProps(bitmaps: NightStreetBitmaps, view: StreetC
             flip = prop.flip
         )
         if (prop.sprite == NightSprite.ITEM) {
-            // destaque lento e discreto: 0,10 a 0,46 de opacidade (amplitude +20% na v3.1), ciclo de 2,4 s
-            val pulse = 0.5f + 0.5f * sin(2f * PI.toFloat() * seconds / 2.4f)
+            // halo dourado que pulsa ao redor da flor: 0,30 a 0,85 de opacidade, ciclo de 1,8 s
+            val pulse = 0.5f + 0.5f * sin(2f * PI.toFloat() * seconds / 1.8f)
+            val ind = bitmaps.sprites.getValue(NightSprite.ITEM_INDICATOR)
+            val indH = prop.h * NightStreetLayout.ITEM_INDICATOR_SCALE_H
+            val indW = indH * ind.width / ind.height
             drawSpriteUnits(
-                bmp = bitmaps.sprites.getValue(NightSprite.ITEM_INDICATOR),
-                leftU = leftU,
-                topU = prop.top,
-                widthU = widthU,
-                heightU = prop.h,
+                bmp = ind,
+                leftU = prop.x - indW / 2f - view.cameraX,
+                topU = prop.top + prop.h / 2f - indH / 2f,
+                widthU = indW,
+                heightU = indH,
                 unitPx = view.scale,
-                flip = prop.flip,
-                alpha = 0.10f + 0.36f * pulse,
+                flip = false,
+                alpha = 0.30f + 0.55f * pulse,
                 blendMode = BlendMode.Plus
             )
         }
@@ -282,24 +291,6 @@ private fun DrawScope.drawClubSpill(bitmaps: NightStreetBitmaps, view: StreetCam
         flip = false,
         colorFilter = club.filter,
         alpha = ClubLights.spillAlpha(club.level),
-        blendMode = BlendMode.Plus
-    )
-}
-
-/** Pontos de neon pixelados, colados na borda direita da tela (a balada fica além dela). */
-private fun DrawScope.drawClubAccents(bitmaps: NightStreetBitmaps, view: StreetCamera.View, club: ClubFrame) {
-    val screenRightU = size.width / view.scale
-    val leftU = screenRightU - NightStreetLayout.CLUB_ACCENT_W - NightStreetLayout.CLUB_ACCENT_MARGIN
-    drawSpriteUnits(
-        bmp = bitmaps.sprites.getValue(NightSprite.CLUB_ACCENTS),
-        leftU = leftU,
-        topU = NightStreetLayout.CLUB_ACCENT_TOP,
-        widthU = NightStreetLayout.CLUB_ACCENT_W,
-        heightU = NightStreetLayout.CLUB_ACCENT_H,
-        unitPx = view.scale,
-        flip = false,
-        colorFilter = club.filter,
-        alpha = ClubLights.accentAlpha(club.level),
         blendMode = BlendMode.Plus
     )
 }

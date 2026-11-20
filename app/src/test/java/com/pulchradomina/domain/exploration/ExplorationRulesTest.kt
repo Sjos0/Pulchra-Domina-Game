@@ -59,16 +59,16 @@ class ExplorationRulesTest {
 
     @Test
     fun itemHint_appearsWithinTenPercent_andDisappearsBeyond() {
-        // valores exatos em ponto flutuante: item em 50%, raio de 10 pontos
+        // valores exatos em ponto flutuante: item em 50%, raio de 3 pontos
         assertTrue(ExplorationRules.isNearItem(playerXPercent = 50f, itemXPercent = 50f))
-        assertTrue(ExplorationRules.isNearItem(playerXPercent = 40f, itemXPercent = 50f))
-        assertTrue(ExplorationRules.isNearItem(playerXPercent = 60f, itemXPercent = 50f))
-        assertFalse(ExplorationRules.isNearItem(playerXPercent = 39f, itemXPercent = 50f))
-        assertFalse(ExplorationRules.isNearItem(playerXPercent = 61f, itemXPercent = 50f))
+        assertTrue(ExplorationRules.isNearItem(playerXPercent = 47f, itemXPercent = 50f))
+        assertTrue(ExplorationRules.isNearItem(playerXPercent = 53f, itemXPercent = 50f))
+        assertFalse(ExplorationRules.isNearItem(playerXPercent = 46f, itemXPercent = 50f))
+        assertFalse(ExplorationRules.isNearItem(playerXPercent = 54f, itemXPercent = 50f))
     }
 
     @Test
-    fun itemHintRadius_isTenPercent_sameScaleAsHotspots() {
-        assertEquals(10f, ExplorationRules.ITEM_HINT_RADIUS, 0f)
+    fun itemHintRadius_isThreePercent_sameScaleAsHotspots() {
+        assertEquals(3f, ExplorationRules.ITEM_HINT_RADIUS, 0f)
     }
 }

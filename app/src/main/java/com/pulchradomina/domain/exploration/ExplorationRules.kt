@@ -20,10 +20,10 @@ object ExplorationRules {
     /** Distância máxima (em % do mundo) para considerar hotspot “próximo”. */
     const val HOTSPOT_RADIUS = 4f
     /**
-     * Raio (pontos percentuais do mundo, mesma escala de HOTSPOT_RADIUS) em que a mão de toque
-     * aparece sobre um item do chão. Aviso só visual: não dispara ação.
+     * Raio (pontos percentuais do mundo, mesma escala de HOTSPOT_RADIUS) em que o aviso de toque
+     * aparece acima de um item do chão. Aviso só visual: não dispara ação. Era 10 (sensível demais, v1.0.31).
      */
-    const val ITEM_HINT_RADIUS = 10f
+    const val ITEM_HINT_RADIUS = 3f
     /** Limites do personagem na tela (fração da largura), para o balão de hotspot. */
     const val CANVAS_MIN_FRACTION = 0.15f
     const val CANVAS_MAX_FRACTION = 0.85f

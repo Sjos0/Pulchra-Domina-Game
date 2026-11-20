@@ -139,10 +139,8 @@ class NightStreetLayoutTest {
     }
 
     @Test
-    fun clubSpill_isNearTheRightEnd_andClubAccents_hugTheRight() {
+    fun clubSpill_isNearTheRightEnd() {
         assertTrue(NightStreetLayout.CLUB_SPILL_W < worldWidth / 2f)
-        assertTrue(NightStreetLayout.CLUB_ACCENT_TOP + NightStreetLayout.CLUB_ACCENT_H < NightStreetLayout.GROUND_TOP)
-        assertTrue(NightStreetLayout.CLUB_ACCENT_W < 100f)
     }
 
     @Test

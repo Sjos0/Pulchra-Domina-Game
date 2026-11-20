@@ -60,7 +60,6 @@ class ClubLightsTest {
         for (level in listOf(ClubLights.BASE_LEVEL, ClubLights.level(1f))) {
             assertTrue(ClubLights.rimAlpha(w, w, level) in 0f..1f)
             assertTrue(ClubLights.spillAlpha(level) in 0f..1f)
-            assertTrue(ClubLights.accentAlpha(level) in 0f..1f)
         }
     }
 }

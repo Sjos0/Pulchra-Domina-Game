@@ -3,8 +3,11 @@ package com.pulchradomina.ui.game.night
 /**
  * Detector de batidas sobre a energia de graves (bumbo/baixo) do som que está tocando.
  *
- * Batida = energia acima de uma média móvel (limiar relativo) e acima de um piso absoluto,
- * com intervalo mínimo entre batidas (não dispara duas vezes no mesmo bumbo).
+ * Batida = energia acima da média móvel (limiar relativo) e perto do pico recente, com intervalo mínimo
+ * entre batidas (não dispara duas vezes no mesmo bumbo).
+ *
+ * Tudo é relativo ao próprio sinal, não a um piso fixo: na rua a balada toca com volume de 5% a 95%
+ * (ver NightMix.CLUB_LEFT/CLUB_RIGHT), e um piso absoluto deixava a luz sem batida no começo do cenário.
  * Puro: recebe os valores, não toca em áudio, então é testável em JVM.
  */
 internal class ClubBeatDetector(
@@ -14,18 +17,25 @@ internal class ClubBeatDetector(
     private val meanSmoothing: Float = 0.08f,
     /** Quantas vezes acima da média a energia precisa estar. */
     private val ratio: Float = 1.45f,
-    /** Piso absoluto, para o silêncio não virar batida. */
-    private val floor: Float = 12f
+    /** Fração do pico recente que a energia precisa atingir (relativa ao volume atual). */
+    private val peakFraction: Float = 0.35f,
+    /** Queda do pico recente por captura (~2,5 s de meia-vida com capturas a 20 Hz). */
+    private val peakDecay: Float = 0.985f,
+    /** Abaixo disto é silêncio, não batida (evita ruído de fundo). */
+    private val silence: Float = 1e-3f
 ) {
     private var mean = 0f
+    private var peak = 0f
     private var primed = false
     private var lastBeat = NONE
 
     /** Retorna true se esta captura marca uma batida. */
     fun onEnergy(nowNanos: Long, energy: Float): Boolean {
         val spaced = lastBeat == NONE || nowNanos - lastBeat >= minIntervalNanos
+        val floor = maxOf(silence, peak * peakFraction)
         val isBeat = primed && spaced && energy > floor && energy > mean * ratio
         mean = if (!primed) energy else mean + (energy - mean) * meanSmoothing
+        peak = maxOf(energy, peak * peakDecay)
         primed = true
         if (isBeat) lastBeat = nowNanos
         return isBeat
@@ -33,6 +43,7 @@ internal class ClubBeatDetector(
 
     fun reset() {
         mean = 0f
+        peak = 0f
         primed = false
         lastBeat = NONE
     }
