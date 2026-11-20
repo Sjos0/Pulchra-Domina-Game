@@ -25,7 +25,7 @@ class ClubBeatDetectorTest {
     fun steadyBeat_detectsOneBeatPerKick() {
         // 120 BPM = uma batida a cada 500 ms, por 10 s = 20 batidas
         val beats = run(ClubBeatDetector(), beatEveryMs = 500, durationMs = 10_000)
-        assertEquals(20, beats, 1)
+        assertTrue("batidas detectadas: $beats", kotlin.math.abs(beats - 20) <= 1)
     }
 
     @Test

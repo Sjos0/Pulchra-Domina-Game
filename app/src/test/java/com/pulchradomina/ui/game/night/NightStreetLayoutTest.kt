@@ -132,8 +132,8 @@ class NightStreetLayoutTest {
             val base = javax.imageio.ImageIO.read(File(assetsDir, sprite.file))
             listOf(pair.first, pair.second).forEach { mask ->
                 val img = javax.imageio.ImageIO.read(File(assetsDir, mask.file))
-                assertEquals("máscara ${mask.file}", base.width, img.width)
-                assertEquals("máscara ${mask.file}", base.height, img.height)
+                assertEquals("máscara ${mask.file}", base.width.toLong(), img.width.toLong())
+                assertEquals("máscara ${mask.file}", base.height.toLong(), img.height.toLong())
             }
         }
     }
