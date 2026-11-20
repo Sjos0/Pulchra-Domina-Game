@@ -19,6 +19,11 @@ object ExplorationRules {
     const val MOVE_TICK_MS = 30L
     /** Distância máxima (em % do mundo) para considerar hotspot “próximo”. */
     const val HOTSPOT_RADIUS = 4f
+    /**
+     * Raio (pontos percentuais do mundo, mesma escala de HOTSPOT_RADIUS) em que a mão de toque
+     * aparece sobre um item do chão. Aviso só visual: não dispara ação.
+     */
+    const val ITEM_HINT_RADIUS = 10f
     /** Limites do personagem na tela (fração da largura), para o balão de hotspot. */
     const val CANVAS_MIN_FRACTION = 0.15f
     const val CANVAS_MAX_FRACTION = 0.85f
@@ -51,6 +56,10 @@ object ExplorationRules {
             kotlin.math.abs(spot.positionPercent - playerXPercent) < HOTSPOT_RADIUS
         }
     }
+
+    /** Aviso do item aparece a até [ITEM_HINT_RADIUS] pontos percentuais dele (inclusive). */
+    fun isNearItem(playerXPercent: Float, itemXPercent: Float): Boolean =
+        kotlin.math.abs(itemXPercent - playerXPercent) <= ITEM_HINT_RADIUS
 
     /** Fração da largura (limitada) onde o balão de hotspot fica, a partir da posição na tela (0..100). */
     fun canvasFraction(screenXPercent: Float): Float =

@@ -27,7 +27,7 @@ internal object ClubLights {
 
     /** Pulso: subida rápida (ataque) e queda suave (decaimento), sem estroboscópio. */
     const val ATTACK_S = 0.08f
-    const val DECAY_S = 0.35f
+    const val DECAY_S = 0.25f
 
     /** Depois disto sem batida, a luz volta ao nível de base (música parada ou sem captura). */
     const val ACTIVE_WINDOW_S = 2.5f
@@ -37,7 +37,7 @@ internal object ClubLights {
     const val PULSE_LEVEL = 0.62f
 
     /** Ganhos máximos por tipo de luz (multiplicam o nível). */
-    const val RIM_GAIN = 0.85f
+    const val RIM_GAIN = 1.23f
     const val SPILL_GAIN = 0.6f
     const val ACCENT_GAIN = 0.9f
 
@@ -58,8 +58,9 @@ internal object ClubLights {
     /** Quanto da balada chega a um ponto do mundo: 0 no meio, 1 junto da borda direita. */
     fun proximity(worldX: Float, worldWidth: Float): Float = smoothstep((worldX / worldWidth - 0.35f) / 0.6f)
 
+    /** Alpha do Rim, limitado a 0..1 (o Canvas não aceita mais que isso). */
     fun rimAlpha(worldX: Float, worldWidth: Float, level: Float): Float =
-        proximity(worldX, worldWidth) * level * RIM_GAIN
+        (proximity(worldX, worldWidth) * level * RIM_GAIN).coerceIn(0f, 1f)
 
     fun spillAlpha(level: Float): Float = level * SPILL_GAIN
 

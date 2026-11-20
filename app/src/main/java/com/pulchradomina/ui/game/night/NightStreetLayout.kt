@@ -143,7 +143,7 @@ internal object NightStreetLayout {
 
     /** Itens no chão da calçada (desenhados depois do chão, antes dos postes e do Edgar). Camada não usada. */
     val groundProps: List<Prop> = listOf(
-        Prop(NightSprite.ITEM, x = 2440.0f, top = 1204.0f, h = 48.0f, layer = Layer.FRONT, parallax = 1.0f, flip = false, drift = 0.0f),
+        Prop(NightSprite.ITEM, x = 2440.0f, top = 1199.0f, h = 53.0f, layer = Layer.FRONT, parallax = 1.0f, flip = false, drift = 0.0f),
     )
 
     val lamps: List<Lamp> = listOf(
@@ -171,4 +171,7 @@ internal object NightStreetLayout {
     const val CLUB_ACCENT_H = 400f
     const val CLUB_ACCENT_TOP = 620f
     const val CLUB_ACCENT_MARGIN = 10f
+
+    /** Ícone de mão do aviso de item (SVG, viewBox 0 0 24 24), de tools/night_street/sources/hand_hint.svg. */
+    const val ITEM_HINT_HAND_PATH = "M9 11.24V7.5C9 6.12 10.12 5 11.5 5S14 6.12 14 7.5v3.74c1.21-.81 2-2.18 2-3.74C16 5.01 13.99 3 11.5 3S7 5.01 7 7.5c0 1.56.79 2.93 2 3.74zm9.84 4.63l-4.54-2.26c-.17-.07-.35-.11-.54-.11H13v-6c0-.83-.67-1.5-1.5-1.5S10 6.67 10 7.5v10.74l-3.43-.72c-.08-.01-.15-.03-.24-.03-.31 0-.59.13-.79.33l-.79.8 4.94 4.94c.27.27.65.44 1.06.44h6.79c.75 0 1.33-.55 1.44-1.28l.75-5.27c.01-.07.02-.14.02-.2 0-.62-.38-1.16-.91-1.38z"
 }

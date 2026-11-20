@@ -1,6 +1,9 @@
 package com.pulchradomina.ui.game.night
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import com.pulchradomina.domain.exploration.ExplorationRules
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -95,6 +98,19 @@ fun NightStreetScene(
         }
     }
 
+    // Aviso do item no chão: aparece a até 10% do mundo do item (só com o Edgar visível) e some ao afastar.
+    val item = remember { NightStreetLayout.groundProps.firstOrNull { it.sprite == NightSprite.ITEM } }
+    val nearItem = edgarAlpha > 0.5f && item != null &&
+        ExplorationRules.isNearItem(
+            playerXPercent = playerWorldX / NightStreetLayout.WORLD_WIDTH * 100f,
+            itemXPercent = item.x / NightStreetLayout.WORLD_WIDTH * 100f
+        )
+    val itemHintAlpha: Float by animateFloatAsState(
+        targetValue = if (nearItem) 1f else 0f,
+        animationSpec = tween(durationMillis = 260),
+        label = "itemHint"
+    )
+
     Canvas(modifier = modifier) {
         val seconds = elapsedNanos.longValue / 1_000_000_000f
         val view = cameraWorldX?.let { StreetCamera.viewAt(size.width, size.height, it) }
@@ -117,6 +133,7 @@ fun NightStreetScene(
         drawLampCones(bitmaps, view)
         drawLampBulbs(view)
         drawClubAccents(bitmaps, view, club)
+        item?.let { drawItemHint(it, view.cameraX, view.scale, itemHintAlpha, seconds) }
     }
 }
 
@@ -232,7 +249,7 @@ private fun DrawScope.drawGroundProps(bitmaps: NightStreetBitmaps, view: StreetC
             flip = prop.flip
         )
         if (prop.sprite == NightSprite.ITEM) {
-            // destaque lento e discreto: 0,10 a 0,40 de opacidade, ciclo de 2,4 s
+            // destaque lento e discreto: 0,10 a 0,46 de opacidade (amplitude +20% na v3.1), ciclo de 2,4 s
             val pulse = 0.5f + 0.5f * sin(2f * PI.toFloat() * seconds / 2.4f)
             drawSpriteUnits(
                 bmp = bitmaps.sprites.getValue(NightSprite.ITEM_INDICATOR),
@@ -242,7 +259,7 @@ private fun DrawScope.drawGroundProps(bitmaps: NightStreetBitmaps, view: StreetC
                 heightU = prop.h,
                 unitPx = view.scale,
                 flip = prop.flip,
-                alpha = 0.10f + 0.30f * pulse,
+                alpha = 0.10f + 0.36f * pulse,
                 blendMode = BlendMode.Plus
             )
         }
