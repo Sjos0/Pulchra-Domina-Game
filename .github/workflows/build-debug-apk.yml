@@ -10,6 +10,8 @@ on:
 
 permissions:
   contents: write
+  issues: write
+  pull-requests: write
 
 jobs:
   build:
@@ -65,7 +67,25 @@ jobs:
           echo "Resolved versionName=$NAME versionCode=$CODE"
 
       - name: Unit tests
-        run: ./gradlew testDebugUnitTest --stacktrace --no-daemon
+        run: |
+          set -o pipefail
+          ./gradlew testDebugUnitTest --stacktrace --no-daemon 2>&1 | tee /tmp/unit.log
+
+      - name: Diagnóstico de falha (temporário)
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "### Diagnóstico do CI (run ${{ github.run_id }})"
+            echo '```'
+            grep -E "^e: |What went wrong|FAILED|AssertionError|Exception|error:" /tmp/unit.log | head -80
+            echo '```'
+            for f in app/build/test-results/testDebugUnitTest/*.xml; do
+              [ -f "$f" ] && { echo "**$f**"; echo '```'; grep -A4 "<failure" "$f" | head -40; echo '```'; }
+            done
+          } > /tmp/diag.md 2>&1 || true
+          gh issue comment 14 --repo "${{ github.repository }}" --body-file /tmp/diag.md || true
 
       - name: Build Debug APK
         run: |
