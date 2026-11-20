@@ -518,17 +518,17 @@ fun ExplorationScreen(
                                 .testTag("btn_walk_left"),
                             shape = CircleShape,
                             colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = if (isLeftPressed) VioletAccent else SurfaceGothic,
+                                containerColor = if (isLeftPressed) VioletAccent else SurfaceGothic.copy(alpha = 0.72f),
                                 contentColor = PaleText
                             ),
-                            border = BorderStroke(1.5.dp, if (isLeftPressed) VioletLight else BorderGothic),
+                            border = BorderStroke(1.dp, if (isLeftPressed) VioletLight else BorderGothic.copy(alpha = 0.6f)),
                             contentPadding = PaddingValues(0.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Andar para Esquerda",
                                 tint = if (isLeftPressed) Color.White else PaleText,
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(24.dp)
                             )
                         }
 
@@ -541,17 +541,17 @@ fun ExplorationScreen(
                                 .testTag("btn_walk_right"),
                             shape = CircleShape,
                             colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = if (isRightPressed) VioletAccent else SurfaceGothic,
+                                containerColor = if (isRightPressed) VioletAccent else SurfaceGothic.copy(alpha = 0.72f),
                                 contentColor = PaleText
                             ),
-                            border = BorderStroke(1.5.dp, if (isRightPressed) VioletLight else BorderGothic),
+                            border = BorderStroke(1.dp, if (isRightPressed) VioletLight else BorderGothic.copy(alpha = 0.6f)),
                             contentPadding = PaddingValues(0.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                                 contentDescription = "Andar para Direita",
                                 tint = if (isRightPressed) Color.White else PaleText,
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     }

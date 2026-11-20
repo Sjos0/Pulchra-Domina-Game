@@ -1,59 +1,72 @@
 package com.pulchradomina.ui.game.night
 
-import kotlin.math.PI
-import kotlin.math.floor
-import kotlin.math.pow
-import kotlin.math.sin
+import kotlin.math.exp
 
 /**
- * Luzes da balada no extremo direito do mapa: "vazam" do cenário 2 (ainda inacessível).
- * Espalhadas por toda a área demarcada (faixa do fim do mapa, do topo do contorno até o chão).
- * Cada luz pisca no próprio ritmo e fase; as cores são rosa, azul, vermelho, amarelo e verde.
+ * Luz da balada, que fica fora da tela, à direita. Ela chega de três formas (ver NightStreetScene):
+ *  - Rim: borda dos prédios e árvores voltada para a direita, colorida pela balada;
+ *  - Faixa no chão: luz que entra pela borda direita da calçada e da rua;
+ *  - Pontos de neon: pixels dithered colados na borda direita da tela.
+ *
+ * O pulso vem das batidas detectadas no áudio que está tocando (ver [ClubBeats]).
+ * Sem batida recente (música parada ou sem captura), a luz fica no nível de base, sem pulsar.
+ * Funções puras, testadas em JVM.
  */
 internal object ClubLights {
-    const val FIRST_X = 2630f
-    const val LAST_X = 2815f
-    /** Área demarcada na tela: do topo do contorno (~670) até o chão (~1300). */
-    const val TOP_Y = 660f
-    const val BOTTOM_Y = 1290f
-    const val COUNT = 16
-    /** Raio do halo (unidades de mundo). */
-    const val RADIUS = 46f
+    /** Cores aprovadas, em ARGB: magenta e violeta dominam, ciano dá contraste, âmbar aparece pouco. */
+    const val MAGENTA = 0xFFFF2EC8
+    const val VIOLET = 0xFF8A4DFF
+    const val CYAN = 0xFF38E6FF
+    const val AMBER = 0xFFFFB347
 
-    class Light(
-        val x: Float,
-        val y: Float,
-        /** ARGB. */
-        val colorArgb: Long,
-        /** Período do pisco, em segundos. */
-        val period: Float,
-        val phase: Float
-    )
+    /** Sequência de cores (uma entrada por grupo de batidas). Magenta 3x, violeta 2x, ciano 2x, âmbar 1x. */
+    val SEQUENCE: LongArray = longArrayOf(MAGENTA, VIOLET, MAGENTA, CYAN, VIOLET, MAGENTA, AMBER, CYAN)
 
-    private val COLORS: List<Long> = listOf(
-        0xFFFF4FD8, // rosa
-        0xFF3FA9FF, // azul
-        0xFFFF3B3B, // vermelho
-        0xFFFFD93B, // amarelo
-        0xFF3BFF7A  // verde
-    )
+    /** A cor muda a cada duas batidas. */
+    const val BEATS_PER_COLOR = 2
 
-    private fun frac(v: Float): Float = v - floor(v)
+    /** Pulso: subida rápida (ataque) e queda suave (decaimento), sem estroboscópio. */
+    const val ATTACK_S = 0.08f
+    const val DECAY_S = 0.35f
 
-    /** Posições em sequência de baixa discrepância (razões áureas): espalhadas, sem fileira nem padrão. */
-    val LIGHTS: List<Light> = List(COUNT) { i ->
-        Light(
-            x = FIRST_X + (LAST_X - FIRST_X) * frac(i * 0.618034f),
-            y = TOP_Y + (BOTTOM_Y - TOP_Y) * frac(i * 0.381966f + 0.25f),
-            colorArgb = COLORS[i % COLORS.size],
-            period = 0.9f + (i * 0.37f) % 0.9f,
-            phase = i * 1.7f
-        )
+    /** Depois disto sem batida, a luz volta ao nível de base (música parada ou sem captura). */
+    const val ACTIVE_WINDOW_S = 2.5f
+
+    /** Nível de base (sem música) e amplitude do pulso, 0..1. */
+    const val BASE_LEVEL = 0.28f
+    const val PULSE_LEVEL = 0.62f
+
+    /** Ganhos máximos por tipo de luz (multiplicam o nível). */
+    const val RIM_GAIN = 0.85f
+    const val SPILL_GAIN = 0.6f
+    const val ACCENT_GAIN = 0.9f
+
+    fun colorIndexFor(beatCount: Int): Int = (beatCount.coerceAtLeast(0) / BEATS_PER_COLOR) % SEQUENCE.size
+
+    fun colorArgbFor(beatCount: Int): Long = SEQUENCE[colorIndexFor(beatCount)]
+
+    /** 0..1 conforme o tempo desde a última batida. Sem batida recente, 0. */
+    fun pulseAt(sinceBeatS: Float): Float {
+        if (sinceBeatS < 0f || sinceBeatS > ACTIVE_WINDOW_S) return 0f
+        return if (sinceBeatS < ATTACK_S) sinceBeatS / ATTACK_S
+        else exp(-(sinceBeatS - ATTACK_S) / DECAY_S)
     }
 
-    /** Intensidade 0..1: pisco com acendimento rápido e pausa escura (potência alta da senoide). */
-    fun intensity(light: Light, seconds: Float): Float {
-        val wave = sin(2.0 * PI * seconds / light.period + light.phase).toFloat() * 0.5f + 0.5f
-        return wave.pow(4f)
+    /** Nível da luz, de BASE_LEVEL (sem pulso) a BASE_LEVEL + PULSE_LEVEL (pico). */
+    fun level(pulse: Float): Float = BASE_LEVEL + PULSE_LEVEL * pulse.coerceIn(0f, 1f)
+
+    /** Quanto da balada chega a um ponto do mundo: 0 no meio, 1 junto da borda direita. */
+    fun proximity(worldX: Float, worldWidth: Float): Float = smoothstep((worldX / worldWidth - 0.35f) / 0.6f)
+
+    fun rimAlpha(worldX: Float, worldWidth: Float, level: Float): Float =
+        proximity(worldX, worldWidth) * level * RIM_GAIN
+
+    fun spillAlpha(level: Float): Float = level * SPILL_GAIN
+
+    fun accentAlpha(level: Float): Float = level * ACCENT_GAIN
+
+    private fun smoothstep(x: Float): Float {
+        val t = x.coerceIn(0f, 1f)
+        return t * t * (3f - 2f * t)
     }
 }
