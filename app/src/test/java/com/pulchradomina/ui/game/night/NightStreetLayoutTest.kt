@@ -170,4 +170,23 @@ class NightStreetLayoutTest {
         val lampRight = firstLamp.x + firstLamp.h * aspect / 2f
         assertTrue("poste encosta no Edgar", lampRight < edgarLeft)
     }
+
+    @Test
+    fun edgarRim_hasAMaskForEveryIdleAndWalkFrame_bothSides() {
+        for (i in 0 until NightStreetLayout.EDGAR_FRAME_COUNT) {
+            assertTrue("idle_%02d rim r".format(i), File(assetsDir, "edgar/idle_%02d_rim_r.png".format(i)).exists())
+            assertTrue("idle_%02d rim l".format(i), File(assetsDir, "edgar/idle_%02d_rim_l.png".format(i)).exists())
+        }
+        for (i in 0 until WalkCycleLayout.FRAME_COUNT) {
+            assertTrue("walk_%02d rim r".format(i), File(assetsDir, "walk/walk_%02d_rim_r.png".format(i)).exists())
+            assertTrue("walk_%02d rim l".format(i), File(assetsDir, "walk/walk_%02d_rim_l.png".format(i)).exists())
+        }
+    }
+
+    @Test
+    fun roadTexture_isTallEnoughForTheLayoutHeight() {
+        // o asfalto cobre até o fim da tela: a textura tem a mesma altura que a constante do layout
+        val road = javax.imageio.ImageIO.read(File(assetsDir, NightSprite.ROAD.file))
+        assertEquals(NightStreetLayout.ROAD_TILE_HEIGHT.toInt(), road.height)
+    }
 }

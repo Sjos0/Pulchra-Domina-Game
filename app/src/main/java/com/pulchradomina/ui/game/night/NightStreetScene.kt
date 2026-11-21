@@ -134,9 +134,10 @@ fun NightStreetScene(
         drawGround(bitmaps, view)
         drawGroundProps(bitmaps, view, seconds)
         drawLampPosts(bitmaps, view)
-        drawEdgar(bitmaps, view, playerWorldX, isFacingRight, seconds, edgarAlpha, walk)
-        drawNightOverlay()
+        // faixa no chão antes do Edgar: ele não fica manchado pela luz do chão; ganha o próprio rim
         drawClubSpill(bitmaps, view, club)
+        drawEdgar(bitmaps, view, playerWorldX, isFacingRight, seconds, edgarAlpha, walk, club)
+        drawNightOverlay()
         drawLampCones(bitmaps, view)
         drawLampBulbs(view)
         item?.let { drawItemHint(it, view.cameraX, view.scale, itemHint.value) }
@@ -318,32 +319,53 @@ private fun DrawScope.drawEdgar(
     isFacingRight: Boolean,
     seconds: Float,
     alpha: Float,
-    walk: WalkCycleController
+    walk: WalkCycleController,
+    club: ClubFrame
 ) {
     if (alpha <= 0f) return
     // andando: walk cycle (pelo deslocamento); parado: idle em loop
     val bmp: ImageBitmap
+    val rim: Pair<ImageBitmap, ImageBitmap>
     val heightU: Float
     val widthU: Float
     if (walk.walking) {
         bmp = bitmaps.walkFrames[walk.frameIndex]
+        rim = bitmaps.walkRim[walk.frameIndex]
         heightU = WalkCycleLayout.FRAME_HEIGHT_U
         widthU = WalkCycleLayout.FRAME_WIDTH_U
     } else {
         val frame = (seconds * NightStreetLayout.EDGAR_FPS).toInt() % NightStreetLayout.EDGAR_FRAME_COUNT
         bmp = bitmaps.edgarFrames[frame]
+        rim = bitmaps.edgarRim[frame]
         heightU = NightStreetLayout.EDGAR_HEIGHT
         widthU = heightU * NightStreetLayout.EDGAR_ASPECT
     }
+    val leftU = playerWorldX - view.cameraX - widthU / 2f
+    val topU = NightStreetLayout.EDGAR_FEET_Y - heightU
     drawSpriteUnits(
         bmp = bmp,
-        leftU = playerWorldX - view.cameraX - widthU / 2f,
-        topU = NightStreetLayout.EDGAR_FEET_Y - heightU,
+        leftU = leftU,
+        topU = topU,
         widthU = widthU,
         heightU = heightU,
         unitPx = view.scale,
         flip = isFacingRight, // o sprite original olha para a esquerda
         alpha = alpha
+    )
+    // rim do Edgar: só a borda voltada para a balada, mesma regra das árvores e bancos.
+    // Espelhado, a borda da direita da tela é a borda esquerda do arquivo (máscara _l).
+    val mask = if (isFacingRight) rim.second else rim.first
+    drawSpriteUnits(
+        bmp = mask,
+        leftU = leftU,
+        topU = topU,
+        widthU = widthU,
+        heightU = heightU,
+        unitPx = view.scale,
+        flip = isFacingRight,
+        colorFilter = club.filter,
+        alpha = ClubLights.rimAlpha(playerWorldX, NightStreetLayout.WORLD_WIDTH, club.level) * alpha,
+        blendMode = BlendMode.Plus
     )
 }
 

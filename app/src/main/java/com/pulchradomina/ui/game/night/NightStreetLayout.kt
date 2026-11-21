@@ -91,7 +91,7 @@ internal object NightStreetLayout {
     const val SIDEWALK_HEIGHT = 120f
     const val SIDEWALK_TILE_WIDTH = 749.0f
     const val ROAD_TOP = 1332f
-    const val ROAD_TILE_HEIGHT = 234f
+    const val ROAD_TILE_HEIGHT = 654f
     const val EDGAR_HEIGHT = 330f
     const val EDGAR_FEET_Y = 1248f
     const val EDGAR_ASPECT = 0.3f

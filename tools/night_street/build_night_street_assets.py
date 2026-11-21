@@ -36,6 +36,8 @@ GROUND_TOP = 1212            # topo (borda de trás) da calçada
 SIDEWALK_H = 120             # calçada mais alta que a v1 (66)
 ROAD_TOP = GROUND_TOP + SIDEWALK_H
 ROAD_TILE_H = 234
+ROAD_EXT_UNITS = 420          # v3.4: asfalto estendido para baixo (sem faixa vazia entre a rua e os controles)
+ROAD_TOTAL_H = ROAD_TILE_H + ROAD_EXT_UNITS
 
 # Personagem: altura de desenho e pés. v1 = 260; v2 = 330 (+27%).
 EDGAR_H = 330
@@ -288,6 +290,31 @@ def rim_masks(alpha):
         out.append(m)
     return out[0], out[1]
 
+def rim_band1(alpha):
+    """Só a borda de 1 px voltada para a balada (direita) e para a esquerda, sem o 2º px pontilhado."""
+    solid = alpha >= 128
+    right_empty, left_empty = _sides(solid)
+    return solid & right_empty(1), solid & left_empty(1)
+
+def derive_edgar_rims(out_assets):
+    """
+    Rim do Edgar, por frame: máscara de 1 px da borda (parado: edgar/idle_NN; caminhada: walk/walk_NN).
+    Duas máscaras por frame: _r (borda da direita do arquivo) e _l (quando o Edgar está virado para a direita).
+    Só a borda de 1 px, para o rim marcar silhueta sem iluminar o rosto inteiro.
+    """
+    targets = sorted(glob.glob(os.path.join(out_assets, "edgar", "idle_[0-9][0-9].png"))) + \
+        sorted(glob.glob(os.path.join(out_assets, "walk", "walk_[0-9][0-9].png")))
+    for path in targets:
+        with Image.open(path) as im:
+            alpha = np.array(im.convert("RGBA").getchannel("A"))
+        right, left = rim_band1(alpha)
+        stem = path[:-4]
+        for suffix, arr in (("r", right), ("l", left)):
+            rgba = np.zeros(arr.shape + (4,), np.uint8)
+            rgba[..., :3] = 255
+            rgba[..., 3] = arr.astype(np.uint8) * 255
+            Image.fromarray(rgba, "RGBA").save(f"{stem}_rim_{suffix}.png", optimize=True)
+
 def derive_road(out_assets, base_path):
     """
     Asfalto de textura média: manchas claras/escuras de 2x2 px e poucos pontos escuros, espalhados
@@ -295,6 +322,11 @@ def derive_road(out_assets, base_path):
     O alfa não muda. O asfalto continua mais escuro que a calçada.
     """
     base = np.array(Image.open(base_path).convert("RGBA")).astype(np.float32)
+    # extensão para baixo: repete as últimas 40 linhas da base (lisas, sem marcas de faixa)
+    tail = base[-40:]
+    ext_rows = round(ROAD_EXT_UNITS * ASSET_SCALE)
+    ext = np.tile(tail, (ext_rows // tail.shape[0] + 1, 1, 1))[:ext_rows]
+    base = np.concatenate([base, ext], axis=0)
     H, W = base.shape[:2]
     solid = (base[..., 3] > 8).astype(np.float32)
     rng = np.random.default_rng(20261119)
@@ -350,6 +382,7 @@ def derive_assets(out_assets, road_base):
     road_mean, road_std = derive_road(out_assets, road_base)
     derive_rim_masks(out_assets)
     derive_club_spill(out_assets)
+    derive_edgar_rims(out_assets)
     print(f"asfalto: luminância média {road_mean:.1f}, desvio {road_std:.1f}")
 
 # ------------------------------------------------------------ build
@@ -426,7 +459,7 @@ def build(args):
         for key in TILE_SOURCES:
             meta[key] = repo_png(out_assets, f"{key.lower()}.png")
             tile_w[key] = meta[key]["w"]
-        frame_names = sorted(glob.glob(os.path.join(out_assets, "edgar", "idle_*.png")))
+        frame_names = sorted(glob.glob(os.path.join(out_assets, "edgar", "idle_[0-9][0-9].png")))
         if len(frame_names) != EDGAR_FRAMES:
             sys.exit(f"Esperava {EDGAR_FRAMES} frames do Edgar no repo, achei {len(frame_names)}")
         with Image.open(frame_names[0]) as im:
@@ -564,7 +597,7 @@ internal object NightStreetLayout {{
     const val SIDEWALK_HEIGHT = {SIDEWALK_H}f
     const val SIDEWALK_TILE_WIDTH = {fk(tile_w["SIDEWALK"])}
     const val ROAD_TOP = {ROAD_TOP}f
-    const val ROAD_TILE_HEIGHT = {ROAD_TILE_H}f
+    const val ROAD_TILE_HEIGHT = {ROAD_TOTAL_H}f
     const val EDGAR_HEIGHT = {EDGAR_H}f
     const val EDGAR_FEET_Y = {EDGAR_FEET_Y}f
     const val EDGAR_ASPECT = {fk(edgar_aspect)}
@@ -726,14 +759,20 @@ def render_view(built, cam_units, scale, vp_w, vp_h, edgar_x_units, facing_right
     sw_w = built["tile_w"]["SIDEWALK"]
     for k in range(int(np.ceil(WORLD_W / sw_w))):
         paste(meta["SIDEWALK"]["file"], k * sw_w, GROUND_TOP, sw_w, SIDEWALK_H)
-    road_bottom = (ROAD_TOP + ROAD_TILE_H) * scale
+    road_bottom = (ROAD_TOP + ROAD_TOTAL_H) * scale
     if road_bottom < vp_h:
         ImageDraw.Draw(canvas).rectangle([0, road_bottom, vp_w, vp_h], fill=(16, 12, 34, 255))
     for k in range(int(np.ceil(WORLD_W / BLOCK_W))):
-        paste(meta["ROAD"]["file"], k * BLOCK_W, ROAD_TOP, BLOCK_W, ROAD_TILE_H)
+        paste(meta["ROAD"]["file"], k * BLOCK_W, ROAD_TOP, BLOCK_W, ROAD_TOTAL_H)
     for g in built["ground_props"]:
         w_u = g["h"] * meta[g["s"]]["aspect"]
         paste(meta[g["s"]]["file"], g["gx"] - w_u / 2, g["base"] - g["h"], w_u, g["h"])
+
+    # faixa da balada no chão: antes do Edgar (como no Canvas), para não manchar os pés
+    if club is not None:
+        rgb_c, level = club
+        add_light("club_spill.png", WORLD_W - CLUB_SPILL_W, GROUND_TOP, CLUB_SPILL_W, CLUB_SPILL_H,
+                  False, rgb_c, level * SPILL_GAIN_PREVIEW)
 
     # postes (sprite) e Edgar
     for lamp, g in zip(LAMPS_SPEC, built["lamps"]):
@@ -747,6 +786,13 @@ def render_view(built, cam_units, scale, vp_w, vp_h, edgar_x_units, facing_right
     ex = round((edgar_x_units - cam_units - ed_w / 2) * scale)
     ey = round((EDGAR_FEET_Y - EDGAR_H) * scale)
     canvas.alpha_composite(ed, (ex, ey))
+    if club is not None:
+        # rim do Edgar: borda voltada para a balada, mesma regra das árvores e bancos
+        rgb_c, level = club
+        rim_file = f"edgar/idle_{frame:02d}_rim_{'l' if facing_right else 'r'}.png"
+        k_ed = smoothstep01((edgar_x_units / WORLD_W - 0.35) / 0.6) * level * RIM_GAIN_PREVIEW
+        add_light(rim_file, edgar_x_units - ed_w / 2, EDGAR_FEET_Y - EDGAR_H, ed_w, EDGAR_H,
+                  facing_right, rgb_c, k_ed)
 
     # noite: escurece tudo
     rgb = np.array(canvas.convert("RGB")).astype(np.float32)
@@ -754,13 +800,8 @@ def render_view(built, cam_units, scale, vp_w, vp_h, edgar_x_units, facing_right
     rgb = rgb * (1 - NIGHT_OVERLAY_ALPHA) + overlay * NIGHT_OVERLAY_ALPHA
     canvas = Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8), "RGB").convert("RGBA")
 
-    if club is not None:
-        rgb_c, level = club
-        # faixa da balada no chão (borda direita), depois a luz dos postes
-        add_light("club_spill.png", WORLD_W - CLUB_SPILL_W, GROUND_TOP, CLUB_SPILL_W, CLUB_SPILL_H,
-                  False, rgb_c, level * SPILL_GAIN_PREVIEW)
-        # o array rgb volta a ser a base dos passos seguintes (postes, cones)
-        rgb = np.array(canvas.convert("RGB")).astype(np.float32)
+    # o array rgb volta a ser a base dos passos seguintes (postes, cones)
+    rgb = np.array(canvas.convert("RGB")).astype(np.float32)
 
     # luz: cone de cada lâmpada, ápice na lâmpada e base no chão (aditivo, em degraus)
     H, W = rgb.shape[:2]
